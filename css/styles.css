@@ -1,0 +1,234 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: #f9f9f9;
+    text-align: center;
+}
+
+h2 {
+    margin: 20px;
+}
+
+.section {
+    margin-top: 20px; /* <-- отступ сверху */
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 2 элемента */
+    grid-auto-rows: 50vh;           /* половина высоты экрана */
+    gap: 10px;
+}
+
+.item {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    background: #ddd;
+    border-radius: 8px;
+    padding: 5px;
+    box-sizing: border-box;
+    height: 100%;       /* растягиваем на всю высоту grid-ячейки */
+    overflow: hidden;
+}
+
+.item > div {
+    flex: 0 0 auto;     /* заголовок и подпись не растягиваются */
+    margin: 2px 0;
+}
+
+.item img {
+    flex: 1 1 auto;     /* занимает все оставшееся место */
+    min-height: 0;      /* важно для flex */
+    max-width: 100%;    /* по ширине не выходит */
+    object-fit: contain; /* сохраняем пропорции */
+}
+
+/* Lightbox */
+.lightbox {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.lightbox img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: 10px;
+    transition: transform 0.15s ease;
+    cursor: zoom-in;
+    user-select: none;
+}
+
+
+.section-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 2 элемента на строку */
+  gap: 10px;
+  width: 100%;
+  margin-top: 30px;
+}
+
+.list-item {
+  background: #eee;
+  border-radius: 8px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.list-item ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list-item li {
+  padding: 5px 10px;
+  background: #fff;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.list-item li:hover {
+  background: #f0f0f0;
+}
+
+.copy-icon {
+  transition: transform 0.3s, opacity 0.3s;
+}
+
+.list-item li.copied .copy-icon {
+  transform: scale(1.2);
+  opacity: 0;
+}
+
+.list-item li.copied::after {
+  content: "✅";
+  position: absolute;
+  right: 10px;
+  font-size: 16px;
+  animation: fade 1s forwards;
+}
+
+@keyframes fade {
+  0% { opacity: 0; transform: scale(0.5);}
+  50% { opacity: 1; transform: scale(1.2);}
+  100% { opacity: 1; transform: scale(1);}
+}
+
+.tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.tab {
+    padding: 10px 20px;
+    margin: 0 5px;
+    background: #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.tab.active {
+    background: #333;
+    color: #fff;
+}
+
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 2000; 
+    left: 0; top: 0; 
+    width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.5); 
+    justify-content: center; 
+    align-items: center;
+}
+
+.modal-content {
+    background: #fff; 
+    padding: 20px; 
+    border-radius: 10px; 
+    min-width: 300px;
+    max-width: 600px;
+}
+
+.modal-content table {
+    width: 100%; 
+    border-collapse: collapse; 
+}
+
+.modal-content th, .modal-content td {
+    padding: 10px; 
+    border: 1px solid #ccc; 
+    text-align: left;
+}
+
+.modal-content .close {
+    position: absolute; 
+    top: 10px; 
+    right: 15px; 
+    font-size: 24px; 
+    cursor: pointer;
+}
+
+.lightbox img {
+    touch-action: none;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    margin: 0 5px;
+    background: #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+    text-decoration: none; /* убираем подчеркивание ссылки */
+    color: inherit;        /* наследует цвет текста, как у вкладок */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tab-button:hover {
+    background: #ccc;
+}
+
+.info-banner {
+    background-color: #e8f4fd;
+    border-left: 4px solid #2196f3;
+    padding: 16px 20px;
+    margin: 16px 0;
+    border-radius: 6px;
+}
+
+.info-banner p {
+    margin: 0;
+    color: #0d47a1;
+    font-size: 16px;      /* было 14px */
+    font-weight: 600;     /* полужирный */
+    line-height: 1.5;
+}
+
+.info-banner-left {
+    text-align: left;
+    font-size: 14px !important;
+}
+
