@@ -1,163 +1,184 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Гильдия Время - Схемы прохождения</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="css/responsive.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Гильдия Время - Схемы прохождения</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <script>!function(){const e="theme",t=document.documentElement,a=localStorage.getItem(e);a&&(t.dataset[e]=a),document.addEventListener("DOMContentLoaded",(()=>{const o=document.getElementById("theme-picker"),c=document.querySelector(".theme-icon");if(!o)return;const n=window.matchMedia("(prefers-color-scheme: dark)").matches;function r(e){return("auto"===e?window.matchMedia("(prefers-color-scheme: dark)").matches:"dark"===e)?"images/ic_palette_24_night.svg":"images/ic_palette_24_day.svg"}console.log(n),a&&a!==o.value&&(o.value=a),c.src=r(o.value),o.addEventListener("change",(a=>{const n=a.target.value;"auto"===n?(delete t.dataset[e],localStorage.removeItem(e)):(t.dataset[e]=n,localStorage.setItem(e,n)),c.src=r(o.value)}))}))}();</script>
+    <noscript>
+        <style>.theme-picker-container, .theme-icon {
+            display: none;
+        } </style>
+    </noscript>
 </head>
 <body>
-  <!-- Шапка с флагом -->
-  <div class="header">
+<!-- Шапка с флагом -->
+<div class="header">
     <div class="flag-container">
-      <img src="images/Flag.jpg" alt="Флаг гильдии Время" class="flag">
+        <img src="images/Flag.jpg" alt="Флаг гильдии Время" class="flag">
     </div>
     <h1 class="main-title">Гильдия "Время"</h1>
-  </div>
+    <img src="images/ic_palette_24_day.svg" class="theme-icon" alt="Иконка изменения тем"/>
+    <div class="theme-picker-container tab-button">
+        <label for="theme-picker"></label>
+        <select id="theme-picker" class="theme-picker-select">
+            <option value="auto" selected>Авто</option>
+            <option value="light">День</option>
+            <option value="dark">Ночь</option>
+        </select>
+    </div>
+</div>
 
-  <!-- Уведомления -->
-  <div class="notifications-container"></div>
+<!-- Уведомления -->
+<div class="notifications-container"></div>
 
-  <!-- Навигация -->
-  <div class="tabs">
+<!-- Навигация -->
+<div class="tabs">
     <div class="tab active" data-target="schemes">🗺️ Схемы</div>
     <div class="tab" data-target="players">👥 Игроки</div>
-    <a href="https://t.me/your_guild_channel" target="_blank" class="tab-button" rel="noopener noreferrer">📱 Telegram</a>
+    <a href="https://t.me/your_guild_channel" target="_blank" class="tab-button" rel="noopener noreferrer">📱
+        Telegram</a>
     <a href="https://hwmap.online/" target="_blank" class="tab-button" rel="noopener noreferrer">ℹ️ Остров</a>
-    <a href="https://oaslo.com/ru/" target="_blank" class="tab-button" rel="noopener noreferrer">ℹ️ Больше информации</a>
-  </div>
+    <a href="https://oaslo.com/ru/" target="_blank" class="tab-button" rel="noopener noreferrer">ℹ️ Больше
+        информации</a>
+</div>
 
-  <!-- Информационный баннер -->
-  <div class="info-banner">
+<!-- Информационный баннер -->
+<div class="info-banner">
     <p>ℹ️ Обратите внимание, что:</p>
     <p class="info-banner-left">- Приключения нужно делать закрытыми во избежание проблем с прохождением!</p>
     <p class="info-banner-left">- Ознакомиться с тем, кого приглашать можно на вкладке "Игроки".</p>
-    <p class="info-banner-left">- В чате приключений обязательно указывайте схему прохождения! (ответственность создающего). Формат схемы: Буква(при наличии) -> номер -> число игроков.</p>
+    <p class="info-banner-left">- В чате приключений обязательно указывайте схему прохождения! (ответственность
+        создающего). Формат схемы: Буква(при наличии) -> номер -> число игроков.</p>
     <p class="info-banner-left">- В чате приклы можно обсудить схему и отклонения от неё.</p>
-    <p class="info-banner-left">- В чате приклы можно не указывать схему, если все участники привыкли проходить по одной и той же. НЕ ДОЛЖНО БЫТЬ СЮРПРИЗА!</p>
+    <p class="info-banner-left">- В чате приклы можно не указывать схему, если все участники привыкли проходить по одной
+        и той же. НЕ ДОЛЖНО БЫТЬ СЮРПРИЗА!</p>
     <p class="info-banner-left">- По всем вопросам и предложениям пишите в чат гильдии.</p>
-  </div>
+</div>
 
-  <!-- Кнопка опроса -->
-  <a href="https://forms.yandex.ru/u/69833b7090290231d818b4b7" target="_blank" class="tab-button survey-btn" rel="noopener noreferrer">📊 Пройти опрос</a>
+<!-- Кнопка опроса -->
+<a href="https://forms.yandex.ru/u/69833b7090290231d818b4b7" target="_blank" class="tab-button survey-btn"
+   rel="noopener noreferrer">📊 Пройти опрос</a>
 
-  <!-- Контентные секции -->
-  <div id="schemes" class="content-section active"></div>
-  <div id="players" class="content-section">
+<!-- Контентные секции -->
+<div id="schemes" class="content-section active"></div>
+<div id="players" class="content-section">
     <div class="table-container">
-      <div class="table-header">
-        <button id="editModeBtn" class="button button--secondary">✏️ Режим редактирования</button>
-        <button id="addPlayerBtn" class="button button--primary" style="display: none;">➕ Добавить игрока</button>
-      </div>
-      <div class="table-wrapper">
-        <table id="playersTable">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th data-sort="nick">Ник <span class="sort-icon">↕️</span></th>
-              <th data-sort="maxLevel">Уровень прикл. <span class="sort-icon">↕️</span></th>
-              <th data-sort="withGreat">С Великим <span class="sort-icon">↕️</span></th>
-              <th data-sort="role">Роль <span class="sort-icon">↕️</span></th>
-              <th data-sort="status">Статус <span class="sort-icon">↕️</span></th>
-              <th data-sort="timezone">Часовой пояс <span class="sort-icon">↕️</span></th>
-              <th data-sort="activeHours">Активность <span class="sort-icon">↕️</span></th>
-              <th data-sort="class">Класс <span class="sort-icon">↕️</span></th>
-              <th data-sort="telegram">Telegram <span class="sort-icon">↕️</span></th>
-              <th data-sort="comment">Комментарий <span class="sort-icon">↕️</span></th>
-              <th class="actions-column" style="display: none;">Действия</th>
-            </tr>
-          </thead>
-          <tbody id="playersTableBody">
-            <!-- Данные загружаются через JS -->
-          </tbody>
-        </table>
-      </div>
+        <div class="table-header">
+            <button id="editModeBtn" class="button button--secondary">✏️ Режим редактирования</button>
+            <button id="addPlayerBtn" class="button button--primary" style="display: none;">➕ Добавить игрока</button>
+        </div>
+        <div class="table-wrapper">
+            <table id="playersTable">
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th data-sort="nick">Ник <span class="sort-icon">↕️</span></th>
+                    <th data-sort="maxLevel">Уровень прикл. <span class="sort-icon">↕️</span></th>
+                    <th data-sort="withGreat">С Великим <span class="sort-icon">↕️</span></th>
+                    <th data-sort="role">Роль <span class="sort-icon">↕️</span></th>
+                    <th data-sort="status">Статус <span class="sort-icon">↕️</span></th>
+                    <th data-sort="timezone">Часовой пояс <span class="sort-icon">↕️</span></th>
+                    <th data-sort="activeHours">Активность <span class="sort-icon">↕️</span></th>
+                    <th data-sort="class">Класс <span class="sort-icon">↕️</span></th>
+                    <th data-sort="telegram">Telegram <span class="sort-icon">↕️</span></th>
+                    <th data-sort="comment">Комментарий <span class="sort-icon">↕️</span></th>
+                    <th class="actions-column" style="display: none;">Действия</th>
+                </tr>
+                </thead>
+                <tbody id="playersTableBody">
+                <!-- Данные загружаются через JS -->
+                </tbody>
+            </table>
+        </div>
     </div>
-  </div>
+</div>
 
-  <!-- Модальное окно для редактирования игрока -->
-  <div id="playerModal" class="modal" style="display: none;">
+<!-- Модальное окно для редактирования игрока -->
+<div id="playerModal" class="modal" style="display: none;">
     <div class="modal-content">
-      <span class="close">&times;</span>
-      <h2 id="modalTitle">Добавить игрока</h2>
-      <form id="playerForm">
-        <div class="form-row">
-          <div class="form-column">
-            <div class="form-group">
-              <label for="nick" class="form-label">Ник *</label>
-              <input type="text" id="nick" class="form-input" required maxlength="50">
+        <span class="close">&times;</span>
+        <h2 id="modalTitle">Добавить игрока</h2>
+        <form id="playerForm">
+            <div class="form-row">
+                <div class="form-column">
+                    <div class="form-group">
+                        <label for="nick" class="form-label">Ник *</label>
+                        <input type="text" id="nick" class="form-input" required maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="maxLevel" class="form-label">Уровень прикл.</label>
+                        <input type="text" id="maxLevel" class="form-input" placeholder="Пример: 12, 13.12, от 9?">
+                    </div>
+                    <div class="form-group">
+                        <label for="withGreat" class="form-label">С Великим</label>
+                        <select id="withGreat" class="form-input">
+                            <option value="?">❓ Неизвестно</option>
+                            <option value="+">✅ Да</option>
+                            <option value="-">❌ Нет</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="role" class="form-label">Роль в гильдии</label>
+                        <input type="text" id="role" class="form-input" placeholder="Мастер, Генерал, Офицер, Участник">
+                    </div>
+                    <div class="form-group">
+                        <label for="status" class="form-label">Статус</label>
+                        <select id="status" class="form-input">
+                            <option value="Активен">Активен</option>
+                            <option value="Отпуск">Отпуск</option>
+                            <option value="Неактивен">Неактивен</option>
+                            <option value="Временно недоступен">Временно недоступен</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-column">
+                    <div class="form-group">
+                        <label for="timezone" class="form-label">Часовой пояс</label>
+                        <input type="text" id="timezone" class="form-input" placeholder="Москва...">
+                    </div>
+                    <div class="form-group">
+                        <label for="activeHours" class="form-label">Время активности</label>
+                        <input type="text" id="activeHours" class="form-input" placeholder="20:00-23:00">
+                    </div>
+                    <div class="form-group">
+                        <label for="class" class="form-label">Класс/Специализация</label>
+                        <input type="text" id="class" class="form-input" placeholder="Физик, Маг...">
+                    </div>
+                    <div class="form-group">
+                        <label for="telegram" class="form-label">Telegram</label>
+                        <input type="text" id="telegram" class="form-input" placeholder="@username">
+                    </div>
+                    <div class="form-group">
+                        <label for="comment" class="form-label">Комментарий</label>
+                        <textarea id="comment" class="form-input" rows="3"
+                                  placeholder="Дополнительная информация..."></textarea>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-              <label for="maxLevel" class="form-label">Уровень прикл.</label>
-              <input type="text" id="maxLevel" class="form-input" placeholder="Пример: 12, 13.12, от 9?">
+            <div class="form-buttons">
+                <button type="submit" class="button button--primary">Сохранить</button>
+                <button type="button" class="button" id="cancelBtn">Отмена</button>
             </div>
-            <div class="form-group">
-              <label for="withGreat" class="form-label">С Великим</label>
-              <select id="withGreat" class="form-input">
-                <option value="?">❓ Неизвестно</option>
-                <option value="+">✅ Да</option>
-                <option value="-">❌ Нет</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="role" class="form-label">Роль в гильдии</label>
-              <input type="text" id="role" class="form-input" placeholder="Мастер, Генерал, Офицер, Участник">
-            </div>
-            <div class="form-group">
-              <label for="status" class="form-label">Статус</label>
-              <select id="status" class="form-input">
-                <option value="Активен">Активен</option>
-                <option value="Отпуск">Отпуск</option>
-                <option value="Неактивен">Неактивен</option>
-                <option value="Временно недоступен">Временно недоступен</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-column">
-            <div class="form-group">
-              <label for="timezone" class="form-label">Часовой пояс</label>
-              <input type="text" id="timezone" class="form-input" placeholder="Москва...">
-            </div>
-            <div class="form-group">
-              <label for="activeHours" class="form-label">Время активности</label>
-              <input type="text" id="activeHours" class="form-input" placeholder="20:00-23:00">
-            </div>
-            <div class="form-group">
-              <label for="class" class="form-label">Класс/Специализация</label>
-              <input type="text" id="class" class="form-input" placeholder="Физик, Маг...">
-            </div>
-            <div class="form-group">
-              <label for="telegram" class="form-label">Telegram</label>
-              <input type="text" id="telegram" class="form-input" placeholder="@username">
-            </div>
-            <div class="form-group">
-              <label for="comment" class="form-label">Комментарий</label>
-              <textarea id="comment" class="form-input" rows="3" placeholder="Дополнительная информация..."></textarea>
-            </div>
-          </div>
-        </div>
-        <div class="form-buttons">
-          <button type="submit" class="button button--primary">Сохранить</button>
-          <button type="button" class="button" id="cancelBtn">Отмена</button>
-        </div>
-      </form>
+        </form>
     </div>
-  </div>
+</div>
 
-  <!-- Lightbox -->
-  <div class="lightbox" id="lightbox">
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
     <img src="" alt="Полная картинка">
-  </div>
+</div>
 
-  <!-- Загрузчик -->
-  <div class="loader" id="loader" style="display: none;">
+<!-- Загрузчик -->
+<div class="loader" id="loader" style="display: none;">
     <div class="spinner"></div>
     <p>Загрузка...</p>
-  </div>
+</div>
 
-  <script src="js/ui_routes.js" defer></script>
-  <script src="js/ui_table.js" defer></script>
-  <script src="js/script.js" defer></script>
+<script src="js/ui_routes.js" defer></script>
+<script src="js/ui_table.js" defer></script>
+<script src="js/script.js" defer></script>
 </body>
 </html>
