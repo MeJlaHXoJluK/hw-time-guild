@@ -97,7 +97,7 @@ class App {
             this.state.isEditMode = !this.state.isEditMode;
             if (this.state.isEditMode) {
                 editBtn.textContent = '❌ Выйти из режима редактирования';
-                editBtn.classList.add('button--secondary');
+                editBtn.classList.remove('button--secondary');
                 addBtn.style.display = 'inline-flex';
                 actionsColumn.style.display = 'table-cell';
                 document.querySelectorAll('.actions-column').forEach(cell => {
@@ -105,7 +105,7 @@ class App {
                 });
             } else {
                 editBtn.textContent = '✏️ Режим редактирования';
-                editBtn.classList.remove('button--secondary');
+                editBtn.classList.add('button--secondary');
                 addBtn.style.display = 'none';
                 actionsColumn.style.display = 'none';
                 document.querySelectorAll('.actions-column').forEach(cell => {
