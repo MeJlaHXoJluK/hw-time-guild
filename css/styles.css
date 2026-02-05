@@ -1,33 +1,4 @@
-/* ===== VARIABLES ===== */
-:root {
-    /* Основные цвета */
-    --primary: #2c3e50;
-    --secondary: #3498db;
-    --accent: #e74c3c;
-    --success: #27ae60;
-    --warning: #f39c12;
-
-    /* Фоны */
-    --bg-primary: #f9f9f9;
-    --bg-secondary: #ffffff;
-    --bg-overlay: rgba(0, 0, 0, 0.8);
-
-    /* Текст */
-    --text-primary: #333333;
-    --text-secondary: #666666;
-    --text-light: #ffffff;
-
-    /* Границы */
-    --border: #dddddd;
-
-    /* Тени */
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
-
-    /* Радиусы */
-    --radius: 8px;
-    --radius-sm: 4px;
-}
+@import "./tokens.css";
 
 /* ===== BASE STYLES ===== */
 * {
@@ -130,7 +101,7 @@ h3 {
 
 /* ===== INFO BANNER ===== */
 .info-banner {
-    background-color: #e8f4fd;
+    background-color: var(--bg-secondary);
     border-left: 4px solid var(--secondary);
     padding: 20px;
     margin: 24px 0;
@@ -139,7 +110,7 @@ h3 {
 
 .info-banner p {
     margin: 8px 0;
-    color: #0d47a1;
+    color: var(--text-accent);
     font-weight: 600;
 }
 
@@ -295,7 +266,7 @@ h3 {
 
 #playersTable th {
     background: var(--primary);
-    color: var(--text-light);
+    color: var(--text-on-secondary);
     padding: 16px 12px;
     text-align: left;
     cursor: pointer;
@@ -493,7 +464,7 @@ h3 {
 
 .button--secondary {
     background: var(--text-secondary);
-    color: var(--text-light);
+    color: var(--text-on-secondary);
 }
 
 .button:hover {
@@ -650,7 +621,7 @@ h3 {
 .paths-title {
     font-weight: 600;
     margin-bottom: 8px;
-    color: #333;
+    color: var(--secondary);
 }
 
 .paths-list {
