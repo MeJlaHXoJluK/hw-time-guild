@@ -6,6 +6,55 @@
     <title>Гильдия Время - Схемы прохождения</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/responsive.css">
+    <script>(function () {
+        const THEME_STORAGE_KEY = 'theme';
+        const THEME_OWNER = document.documentElement;
+
+        const cachedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+        if (cachedTheme) {
+            THEME_OWNER.dataset[THEME_STORAGE_KEY] = cachedTheme;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const themePicker = document.getElementById('theme-picker');
+            const icon = document.querySelector(".theme-icon");
+            if (!themePicker) return;
+
+            const a = window.matchMedia('(prefers-color-scheme: dark)').matches
+            console.log(a);
+
+            if (cachedTheme && cachedTheme !== themePicker.value) {
+                themePicker.value = cachedTheme;
+            }
+
+            function getIcon(theme) {
+                function getDarkIcon(isDark) {
+                    return isDark ? 'images/ic_palette_24_night.svg' : 'images/ic_palette_24_day.svg';
+                }
+
+                return getDarkIcon(theme === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : theme === 'dark');
+            }
+
+            icon.src = getIcon(themePicker.value);
+
+            themePicker.addEventListener('change', (e) => {
+                const theme = e.target.value;
+                if (theme === 'auto') {
+                    delete THEME_OWNER.dataset[THEME_STORAGE_KEY];
+                    localStorage.removeItem(THEME_STORAGE_KEY);
+                } else {
+                    THEME_OWNER.dataset[THEME_STORAGE_KEY] = theme;
+                    localStorage.setItem(THEME_STORAGE_KEY, theme);
+                }
+                icon.src = getIcon(themePicker.value);
+            });
+        });
+    })()</script>
+    <noscript>
+        <style>.theme-picker-container, .theme-icon {
+            display: none;
+        } </style>
+    </noscript>
 </head>
 <body>
 <!-- Шапка с флагом -->
@@ -14,6 +63,15 @@
         <img src="images/Flag.jpg" alt="Флаг гильдии Время" class="flag">
     </div>
     <h1 class="main-title">Гильдия "Время"</h1>
+    <img src="images/ic_palette_24_day.svg" class="theme-icon" alt="Иконка изменения тем"/>
+    <div class="theme-picker-container tab-button">
+        <label for="theme-picker"></label>
+        <select id="theme-picker" class="theme-picker-select">
+            <option value="auto" selected>Авто</option>
+            <option value="light">День</option>
+            <option value="dark">Ночь</option>
+        </select>
+    </div>
 </div>
 
 <!-- Уведомления -->
