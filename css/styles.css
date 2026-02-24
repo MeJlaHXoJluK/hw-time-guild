@@ -653,17 +653,14 @@ h3 {
 .header {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     margin-bottom: 20px;
-    padding: 10px 0;
-    position: relative;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .flag-container {
-    position: absolute;
-    left: 20px;
-    top: 50%;
-    transform: translateY(-50%);
+    width: fit-content;
 }
 
 .flag {
@@ -684,29 +681,39 @@ h3 {
     color: var(--primary);
     font-size: 32px;
     font-weight: bold;
+    width: fit-content;
+    flex-grow: 1;
+}
+
+.header-item {
+    display: inline-grid;
+    grid-template-columns: repeat(2, auto);
+    align-items: center;
+    justify-content: end;
+}
+
+@media (max-width: 946px) {
+    .flag-container {
+        order: 1;
+    }
 }
 
 @media (max-width: 768px) {
     .header {
-        flex-direction: column;
-        gap: 15px;
+        justify-content: start;
     }
-
-    .flag-container {
-        position: relative;
-        left: auto;
-        top: auto;
-        transform: none;
-        order: 2;
-    }
-
     .flag {
         width: 150px;
     }
-
     .main-title {
-        order: 1;
         font-size: 24px;
+    }
+}
+
+@media (max-width: 468px) {
+    .header {
+        flex-direction: column;
+        align-items: start;
     }
 }
 
@@ -957,5 +964,75 @@ h3 {
 
 .theme-icon {
     margin-right: 10px;
-    margin-left: 20px; /* Надо как-то хедер изменить, чтобы были лево | центр | право. Что-то не получается */
+}
+
+/* PROFILE */
+.profile-item {
+    background: var(--bg-secondary);
+    border-radius: 24px;
+    min-height: 44px;
+    display: grid;
+    cursor: pointer;
+    pointer-events: auto;
+    user-select: none;
+    grid-template-columns: repeat(2, auto);
+    align-items: center;
+    justify-content: space-between;
+}
+
+.profile-icon {
+    width: 40px;
+    height: 40px;
+    margin: 8px 0;
+    aspect-ratio: 1 / 1;
+    border-radius: 100%;
+    object-fit: cover;
+}
+
+.profile-text {
+    font-weight: 600;
+    font-size: 16px;
+    text-decoration: none;
+    margin-right: 8px;
+    color: var(--text-primary);
+}
+
+.skeleton {
+    opacity: .7;
+    animation: skeleton-loading 1s linear infinite alternate;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-color: hsl(200, 20%, 70%);
+    }
+
+    100% {
+        background-color: hsl(200, 20%, 95%);
+    }
+}
+
+.skeleton-text {
+    height: 20px;
+    margin-right: 6px;
+    border-radius: 24px;
+    aspect-ratio: 4 / 1 ;
+}
+
+.profile-item.loading {
+    display: none;
+    pointer-events: none;
+}
+
+.profile-item.placeholder {
+    display: none;
+}
+
+.profile-item.loading + .placeholder {
+    display: inline-grid;
+}
+
+.profile-item.tab-button,
+.profile-item.placeholder {
+    padding: 0 24px;
 }
