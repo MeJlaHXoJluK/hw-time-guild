@@ -1,3 +1,6 @@
+import { featureToggles } from './feature_toggles.js';
+import { NotificationUtils } from './utils.js'
+
 class App {
     constructor() {
         this.state = {
@@ -17,6 +20,7 @@ class App {
         this.initModal();
         this.initNotifications();
         this.loadPlayersData();
+        featureToggles.forEach(toggle => toggle.invoke());
     }
 
     // ===== TABS =====
@@ -145,7 +149,7 @@ class App {
             const telegram = document.getElementById('telegram').value.trim() || '';
             const comment = document.getElementById('comment').value.trim() || '';
             if (!nick) {
-                this.showNotification('Ник не может быть пустым', 'error');
+                NotificationUtils.showNotification('Ник не может быть пустым', NotificationUtils.ERROR);
                 return;
             }
             const player = {
@@ -162,10 +166,10 @@ class App {
             };
             if (this.state.currentEditIndex === -1) {
                 this.state.players.push(player);
-                this.showNotification('Игрок добавлен', 'success');
+                NotificationUtils.showNotification('Игрок добавлен', NotificationUtils.SUCCESS);
             } else {
                 this.state.players[this.state.currentEditIndex] = player;
-                this.showNotification('Данные игрока обновлены', 'success');
+                NotificationUtils.showNotification('Данные игрока обновлены', NotificationUtils.SUCCESS);
             }
             this.savePlayersData();
             this.renderPlayersTable();
@@ -196,7 +200,7 @@ class App {
             this.state.players.splice(index, 1);
             this.savePlayersData();
             this.renderPlayersTable();
-            this.showNotification('Игрок удален', 'success');
+            NotificationUtils.showNotification('Игрок удален', NotificationUtils.SUCCESS);
         }
     }
 
@@ -323,7 +327,7 @@ class App {
             localStorage.setItem('hw_guild_players', JSON.stringify(data));
         } catch (error) {
             console.error('Ошибка сохранения данных:', error);
-            this.showNotification('Ошибка сохранения данных', 'error');
+            NotificationUtils.showNotification('Ошибка сохранения данных', NotificationUtils.ERROR);
         }
     }
 
@@ -340,7 +344,7 @@ class App {
             this.renderPlayersTable();
         } catch (error) {
             console.error('Ошибка загрузки данных:', error);
-            this.showNotification('Ошибка загрузки данных', 'error');
+            NotificationUtils.showNotification('Ошибка загрузки данных', NotificationUtils.ERROR);
         }
     }
 
@@ -451,27 +455,12 @@ class App {
         }
     }
 
-    showNotification(message, type = 'info') {
-        const container = document.querySelector('.notifications-container');
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        let icon = 'ℹ️';
-        if (type === 'success') icon = '✅';
-        if (type === 'error') icon = '❌';
-        if (type === 'warning') icon = '⚠️';
-        notification.innerHTML = `
-      <span class="notification-icon">${icon}</span>
-      <span class="notification-text">${message}</span>
-    `;
-        container.appendChild(notification);
-        setTimeout(() => {
-            notification.classList.add('fade-out');
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 3000);
+    /**
+     * Нужен, чтобы из консоли разраба включать фичи.
+     * @returns список фича тогглов. Доступ к тоглу по индексу в списке.
+     */
+    getFeatureToggles() {
+        return featureToggles
     }
 }
 
