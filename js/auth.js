@@ -418,8 +418,6 @@ export function initAuth() {
 
     authHelper.setOnLogoutListener(() => updateUI(viewHolder, new UnknownUser()))
 
-    viewHolder.setLoading(true)
-
     const onError = (e) => {
         updateUI(viewHolder, new UnknownUser())
         showProfileDeletedNotificationIfNeed()
@@ -428,6 +426,8 @@ export function initAuth() {
 
     processCodeExchange()
         .then(isShowAuthSuccessNotification => {
+            viewHolder.setLoading(true)
+
             authorizedFetch(fetchProfile)
                 .then(response => {
                     response.json()
@@ -448,16 +448,16 @@ export function initAuth() {
                         })
                 })
                 .catch(e => onError(e))
+                .finally(() => {
+                    viewHolder.setLoading(false)
+                    console.log("End auth.")
+                })
         })
         .catch(e => {
             if (e instanceof CodeExchangeError) {
                 NotificationUtils.showNotification('Ошибка при входе', NotificationUtils.ERROR)
             }
             onError(e)
-        })
-        .finally(() => {
-            viewHolder.setLoading(false)
-            console.log("End auth.")
         })
 }
 
@@ -516,6 +516,7 @@ async function processCodeExchange() {
         return false
     }
     try {
+        LoaderUtils.show()
         const response = await fetchTokensByCode(code)
         const { accessToken, refreshToken } = await response.json()
         authHelper.setAccessToken(accessToken)
@@ -525,6 +526,7 @@ async function processCodeExchange() {
         console.error(`on exchange code was error: ${e}`)
         throw new CodeExchangeError()
     } finally {
+        LoaderUtils.hide()
         authHelper.removeCode()
     }
 }
