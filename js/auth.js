@@ -1,5 +1,7 @@
 import { NotificationUtils, LoaderUtils, ModalUtils, StringUtils, ThemeUtils } from './utils.js'
 
+const BASE_URL = 'https://afflpqpdllwiwsrtnuer.supabase.co/functions'
+
 class BaseUser {
 
     constructor() {
@@ -29,11 +31,19 @@ class UnauthorizedError extends Error {
     }
 }
 
+class CodeExchangeError extends Error {
+    constructor() {
+        super('Ошибка обмена кода');
+    }
+}
+
 class TokenHelper {
 
     constructor() {
         this.accessKey = 'access_token_key'
         this.refreshKey = 'refresh_token_key'
+        this.codeKey = 'code_key'
+        this.codeErrorKey = 'code_error_key'
         this._onLogoutListener = null
     }
 
@@ -49,6 +59,20 @@ class TokenHelper {
      */
     getRefreshToken() {
         return StringUtils.getStringOrNull(localStorage.getItem(this.refreshKey))
+    }
+
+    /**
+     * @returns code полученный в процессе аутентификации по telegram в случае успеха, в остальных случаях null.
+     */
+    getCode() {
+        return StringUtils.getStringOrNull(localStorage.getItem(this.codeKey))
+    }
+
+    /**
+     * @returns error сообщение полученное в процессе аутентификации по telegram в случае неудачи, в остальных случаях null.
+     */
+    getCodeError() {
+        return StringUtils.getStringOrNull(localStorage.getItem(this.codeErrorKey))
     }
 
     /**
@@ -87,6 +111,11 @@ class TokenHelper {
         if (isRefreshPage) {
             window.location.assign(window.location.href)
         }
+    }
+
+    removeCode() {
+        localStorage.removeItem(this.codeKey)
+        localStorage.removeItem(this.codeErrorKey)
     }
 
     #removeTokens() {
@@ -236,7 +265,7 @@ async function authorizedFetch(_fetch = null) {
  * @returns Promise<Response>, где объект в теле содержит поля accessToken, refreshToken.
  */
 async function fetchTokens(token) {
-    return fetch('https://afflpqpdllwiwsrtnuer.supabase.co/functions/v1/authRefresh', {
+    return fetch(`${BASE_URL}/v1/authRefresh`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -253,11 +282,11 @@ async function fetchTokens(token) {
  * @returns Promise<Response> в теле которого объект с полями name и imgUrl.
  */
 async function fetchProfile(token = '') {
-    return fetch("https://afflpqpdllwiwsrtnuer.supabase.co/functions/v1/profile", {
+    return fetch(`${BASE_URL}/v1/profile`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": token
+            "Authorization": getBearerToken(token)
         },
     })
 }
@@ -268,12 +297,35 @@ async function fetchProfile(token = '') {
  * @returns Promise<Response> результат работы. Если status 200 - профиль удалён, иначе - ошибка.
  */
 async function deleteProfile(token = '') {
-    return fetch('https://afflpqpdllwiwsrtnuer.supabase.co/functions/v1/profileDelete', {
+    return fetch(`${BASE_URL}/v1/profileDelete`, {
         method: 'POST',
         headers: {
-            "Authorization": token
+            "Authorization": getBearerToken(token),
+            "Content-Type": "application/json"
         }
     })
+}
+
+/**
+ * @param code код, который сайт получил редиректом от telegram при авторизации.
+ * @returns Promise<Response> пара access и refresh токенов в случае успеха, иначе запрос с ошибкой.
+ */
+async function fetchTokensByCode(code) {
+    return fetch(`${BASE_URL}/v1/codeExchange`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code: code })
+    })
+}
+
+/**
+ * @param token accessToken
+ * @returns Bearer + пробел + accessToken
+ */
+function getBearerToken(token) {
+    return `Bearer ${token}`
 }
 
 /**
@@ -368,26 +420,40 @@ export function initAuth() {
 
     viewHolder.setLoading(true)
 
-    authorizedFetch(fetchProfile)
-        .then(response => {
-            response.json()
-                .then(profile => {
-                    updateUI(viewHolder, new User(profile.imgUrl))
+    const onError = (e) => {
+        updateUI(viewHolder, new UnknownUser())
+        showProfileDeletedNotificationIfNeed()
+        console.error(e.message)
+    }
+
+    processCodeExchange()
+        .then(isShowAuthSuccessNotification => {
+            authorizedFetch(fetchProfile)
+                .then(response => {
+                    response.json()
+                        .then(profile => {
+                            if (isShowAuthSuccessNotification) {
+                                NotificationUtils.showNotification('Вход выполнен успешно', NotificationUtils.SUCCESS)
+                            }
+                            updateUI(viewHolder, new User(profile.imgUrl))
+                        })
+                        .catch(e => {
+                            // Если вдруг запрос профиля или сеть икнул[а], то с одной стороны у нас в localStorage валидные токены, а с другой, пользователь на UI не понимает авторизован ли он
+                            // Для простоты разлогиниваю его, чтобы ui и логика были консистентными.
+                            // Альтернативно можно было бы конечно просто дефолтную иконку профиля рисовать, НО, по мере увеличения профиля всё сломается.
+                            // Не откуда будет взять никнейм и т.д. Поэтому проще разлогинивать.
+                            authHelper.onLogout()
+                            showProfileDeletedNotificationIfNeed()
+                            console.error(e)
+                        })
                 })
-                .catch(e => {
-                    // Если вдруг запрос профиля или сеть икнул[а], то с одной стороны у нас в localStorage валидные токены, а с другой, пользователь на UI не понимает авторизован ли он
-                    // Для простоты разлогиниваю его, чтобы ui и логика были консистентными.
-                    // Альтернативно можно было бы конечно просто дефолтную иконку профиля рисовать, НО, по мере увеличения профиля всё сломается.
-                    // Не откуда будет взять никнейм и т.д. Поэтому проще разлогинивать.
-                    authHelper.onLogout()
-                    showProfileDeletedNotificationIfNeed()
-                    console.log(e)
-                })
+                .catch(e => onError(e))
         })
         .catch(e => {
-            updateUI(viewHolder, new UnknownUser())
-            showProfileDeletedNotificationIfNeed()
-            console.log(e.message)
+            if (e instanceof CodeExchangeError) {
+                NotificationUtils.showNotification('Ошибка при входе', NotificationUtils.ERROR)
+            }
+            onError(e)
         })
         .finally(() => {
             viewHolder.setLoading(false)
@@ -409,7 +475,7 @@ function buildTelegram() {
     script.src = 'https://telegram.org/js/telegram-widget.js?22';
     script.setAttribute("data-telegram-login", "hw_time_guild_auth_bot");
     script.setAttribute("data-size", "medium");
-    script.setAttribute("data-auth-url", "https://afflpqpdllwiwsrtnuer.supabase.co/functions/v1/tg_auth");
+    script.setAttribute("data-auth-url", `${BASE_URL}/v1/tg_auth`);
     return script
 }
 
@@ -432,5 +498,33 @@ function showProfileDeletedNotificationIfNeed() {
     if (localStorage.getItem('isProfileDeletedNotification') === 'true') {
         NotificationUtils.showNotification('Аккаунт удалён', NotificationUtils.SUCCESS)
         setProfileDeletedNotificationNeed(false)
+    }
+}
+
+/**
+ * @returns true, если нужно показать нотификацию об успешной аутентификации, иначе false.
+ */
+async function processCodeExchange() {
+    const error = authHelper.getCodeError()
+    if (error) {
+        authHelper.removeCode()
+        throw new CodeExchangeError()
+    }
+    const code = authHelper.getCode()
+    if (!code) {
+        authHelper.removeCode()
+        return false
+    }
+    try {
+        const response = await fetchTokensByCode(code)
+        const { accessToken, refreshToken } = await response.json()
+        authHelper.setAccessToken(accessToken)
+        authHelper.setRefreshToken(refreshToken)
+        return true
+    } catch (e) {
+        console.error(`on exchange code was error: ${e}`)
+        throw new CodeExchangeError()
+    } finally {
+        authHelper.removeCode()
     }
 }

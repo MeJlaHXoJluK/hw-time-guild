@@ -7,6 +7,32 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/responsive.css">
     <script>!function(){const e="theme",t=document.documentElement,a=localStorage.getItem(e);a&&(t.dataset[e]=a),document.addEventListener("DOMContentLoaded",(()=>{const o=document.getElementById("theme-picker"),c=document.querySelector(".theme-icon");if(!o)return;const n=window.matchMedia("(prefers-color-scheme: dark)").matches;function r(e){return("auto"===e?window.matchMedia("(prefers-color-scheme: dark)").matches:"dark"===e)?"images/ic_palette_24_night.svg":"images/ic_palette_24_day.svg"}console.log(n),a&&a!==o.value&&(o.value=a),c.src=r(o.value),o.addEventListener("change",(a=>{const n=a.target.value;"auto"===n?(delete t.dataset[e],localStorage.removeItem(e)):(t.dataset[e]=n,localStorage.setItem(e,n)),c.src=r(o.value)}))}))}();</script>
+    <script>
+        (() => {
+            let isReplaceHistory = false
+            try {
+                const params = new URLSearchParams(window.location.search)
+                const code = params.get("code")
+
+                if (code) {
+                    isReplaceHistory = true
+                    localStorage.setItem('code_key', code)
+                } else {
+                    const error = params.get('error')
+                    if (error) {
+                        isReplaceHistory = true
+                        localStorage.setItem('code_error_key', error)
+                    }
+                }
+            } catch (e) {
+                console.error("Code save failed", e)
+            } finally {
+                if (isReplaceHistory) {
+                    window.history.replaceState({}, document.title, "/")
+                }
+            }
+        })()
+    </script>
     <noscript>
         <style>.theme-picker-container, .theme-icon {
             display: none;
