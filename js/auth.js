@@ -454,6 +454,7 @@ export function initAuth() {
                 })
         })
         .catch(e => {
+            viewHolder.setLoading(false)
             if (e instanceof CodeExchangeError) {
                 NotificationUtils.showNotification('Ошибка при входе', NotificationUtils.ERROR)
             }
