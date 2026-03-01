@@ -534,7 +534,7 @@ function buildUserInput(onTextChanged) {
  * Окно создания профиля нового пользователя
  * @param onProfileReceived колбек принимающий User в случае успешного создания профиля.
  */
-async function showProfileCreate(onProfileReceived) {
+async function showProfileCreate(onProfileReceived, onProfileFailed) {
     // todo: какая-то дизайн-система простенькая нужна.
     const modal = ModalUtils.buildModal()
     const closeModal = () => ModalUtils.close(modal)
@@ -542,8 +542,9 @@ async function showProfileCreate(onProfileReceived) {
     try {
         LoaderUtils.show()
         const profilesResponse = await authorizedFetch(fetchUnusedProfiles)
-        console.log(`response status: ${profilesResponse.status}`)
+        console.log(`response status: ${profilesResponse}`)
         if (profilesResponse.status !== 200) {
+            onProfileFailed()
             throw new Error((await profilesResponse.json()).message)
         }
         const users = (await profilesResponse.json()).profiles.map(profile => profile.name)
@@ -617,9 +618,7 @@ async function showProfileCreate(onProfileReceived) {
         )
         ModalUtils.show(modal)
     } catch (e) {
-        authHelper.removeCode()
         closeModal()
-        throw e
     } finally {
         LoaderUtils.hide()
     }
@@ -722,7 +721,7 @@ async function runAuthentication(viewHolder) {
 
         if (isNewUser) {
             LoaderUtils.hide()
-            await showProfileCreate()
+            await showProfileCreate(profile => {}, () => {})
         } else {
             onProfileReceived(await getProfile())
         }
