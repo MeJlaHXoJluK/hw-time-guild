@@ -542,7 +542,6 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
     try {
         LoaderUtils.show()
         const profilesResponse = await authorizedFetch(fetchUnusedProfiles)
-        console.log(`response status: ${profilesResponse.status}`)
         if (profilesResponse.status !== 200) {
             onProfileFailed()
             throw new Error((await profilesResponse.json()).message)
@@ -721,7 +720,11 @@ async function runAuthentication(viewHolder) {
 
         if (isNewUser) {
             LoaderUtils.hide()
-            await showProfileCreate(profile => {}, () => {})
+            await showProfileCreate(profile => {}, () => {
+                authHelper.removeCode()
+                updateUI(viewHolder, new UnknownUser())
+                viewHolder.setLoading(false)
+            })
         } else {
             onProfileReceived(await getProfile())
         }
