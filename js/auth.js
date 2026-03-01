@@ -542,6 +542,9 @@ async function showProfileCreate(onProfileReceived) {
     try {
         LoaderUtils.show()
         const profilesResponse = await authorizedFetch(fetchUnusedProfiles)
+        if (profilesResponse.status !== 200) {
+            throw new Error((await profilesResponse.json()).message)
+        }
         const users = (await profilesResponse.json()).profiles.map(profile => profile.name)
 
         let profileDraft = null
@@ -613,7 +616,9 @@ async function showProfileCreate(onProfileReceived) {
         )
         ModalUtils.show(modal)
     } catch (e) {
+        authHelper.removeCode()
         closeModal()
+        throw e
     } finally {
         LoaderUtils.hide()
     }
