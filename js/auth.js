@@ -341,6 +341,26 @@ async function fetchUnusedProfiles(token) {
 }
 
 /**
+ * @param token accessToken для авторизации запроса
+ * @param profileName имя профиля который регистрируется и будет связан с аккаунтом в ТГ.
+ * @returns {Promise<Response>} Ответ с ушибкой в случае ошибки, иначе успешный ответ с кодом 200. Успешный ответ с кодом 200 может быть в 2-ч состояниях: пришёл профиль или профиль уже занят (такой кейс теоретически возможен если кто-то по ошибке раньше отправил запрос на создание профиля).
+ * Поэтому успешный ответ с кодом 200 всегда содержит в теле isSuccess, который если false - значит аккаунт занял другой пользователь, в случае успешного создания профиля - true.
+ * Покрывает только случай, когда 2 пользователя параллельно пытаются создать пользователя с одним именем.
+ */
+async function createProfile(token, profileName) {
+    return fetch(`${BASE_URL}/v1/createProfile`, {
+        method: 'POST',
+        headers: {
+            "Authorization": getBearerToken(token),
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            name: profileName,
+        })
+    })
+}
+
+/**
  * @param token accessToken
  * @returns Bearer + пробел + accessToken
  */
@@ -561,6 +581,12 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
             }
         }
 
+        const onProfileCreateFailed = () => {
+            NotificationUtils.showNotification('Не удалось создать профиль', NotificationUtils.ERROR)
+            onProfileFailed()
+            closeModal()
+        }
+
         const onProfileCreateClick = () => {
             if (profileCreateBtn && userInput && StringUtils.isNullOrBlank(userInput.value)) {
                 DivButtonUtils.setDisable(profileCreateBtn, true) // так как ввод слушается с задержкой, то можно наткнуться на этот кейс. Удалять debounce НИЗЯ! Так оптимизированее малёха :)
@@ -568,8 +594,28 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
             }
             userInput?.blur()
             DivButtonUtils.setDisable(profileCreateBtn, true) // Чтобы единожды выполнилось // todo: разблокировать в catch запроса если в ответе было о том что аккаунт занят
+            authorizedFetch( async token => {
+                return await createProfile(token, profileDraft)
+            })
+                .then(response => {
+                    if (response.status === 200) {
+                        response.json()
+                            .then(body => {
+                                console.log(`todo: обработать создание профиля: ${body}`)
+                            })
+                            .catch(e => {
+                                console.error(e)
+                                onProfileCreateFailed()
+                            })
+                    } else {
+                        onProfileCreateFailed()
+                    }
+                })
+                .catch(e => {
+                    console.error(e)
+                    onProfileCreateFailed()
+                })
             document.removeEventListener('keypress', onDocumentEnterClick) // todo: удалить когда успех запроса по созданию
-            console.log(`Создать профиль: ${profileDraft}`) // todo: логику закинуть
         }
 
         const onProfileDraftChange = name => {
@@ -676,14 +722,13 @@ function getCodeFromLocalStorage() {
 }
 
 /**
- * @returns User профиль пользователя.
+ * @returns профиль пользователя.
  * @throws LogoutError при ошибке получения профиля.
  */
 async function getProfile() {
     try {
         const response = await authorizedFetch(fetchProfile)
-        const profile = await response.json()
-        return new User(profile.imgUrl)
+        return await response.json()
     } catch (e) {
         // Если вдруг запрос профиля или сеть икнул[а], то с одной стороны у нас в localStorage валидные токены, а с другой, пользователь на UI не понимает авторизован ли он
         // Для простоты разлогиниваю его, чтобы ui и логика были консистентными.
@@ -718,14 +763,24 @@ async function runAuthentication(viewHolder) {
             }
         }
 
+        let profile = null
+        if (!isNewUser) {
+            profile = await getProfile()
+            isNewUser = !profile.hasProfile
+        }
+
         if (isNewUser) {
             LoaderUtils.hide()
-            await showProfileCreate(profile => {}, () => {
+            await showProfileCreate(
+                profile => {
+
+                },
+                () => {
                 authHelper.onLogout()
                 viewHolder.setLoading(false)
             })
         } else {
-            onProfileReceived(await getProfile())
+            onProfileReceived(new User(profile.imgUrl))
         }
     } catch (e) {
         if (e instanceof CodeExchangeError) {
