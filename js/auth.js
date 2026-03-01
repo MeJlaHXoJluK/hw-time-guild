@@ -341,6 +341,26 @@ async function fetchUnusedProfiles(token) {
 }
 
 /**
+ * @param token accessToken для авторизации запроса
+ * @param profileName имя профиля который регистрируется и будет связан с аккаунтом в ТГ.
+ * @returns {Promise<Response>} Ответ с ушибкой в случае ошибки, иначе успешный ответ с кодом 200. Успешный ответ с кодом 200 может быть в 2-ч состояниях: пришёл профиль или профиль уже занят (такой кейс теоретически возможен если кто-то по ошибке раньше отправил запрос на создание профиля).
+ * Поэтому успешный ответ с кодом 200 всегда содержит в теле isSuccess, который если false - значит аккаунт занял другой пользователь, в случае успешного создания профиля - true.
+ * Покрывает только случай, когда 2 пользователя параллельно пытаются создать пользователя с одним именем.
+ */
+async function createProfile(token, profileName) {
+    return fetch(`${BASE_URL}/v1/createProfile`, {
+        method: 'POST',
+        headers: {
+            "Authorization": getBearerToken(token),
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            name: profileName,
+        })
+    })
+}
+
+/**
  * @param token accessToken
  * @returns Bearer + пробел + accessToken
  */
@@ -527,6 +547,7 @@ function buildUserInput(onTextChanged) {
     input.addEventListener('input', e => {
         onTextChanged(e.target.value)
     })
+    input.addEventListener('focus', () => setErrorClass(input, false))
     return input
 }
 
@@ -561,15 +582,54 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
             }
         }
 
+        const onProfileCreateFailed = () => {
+            NotificationUtils.showNotification('Не удалось создать профиль', NotificationUtils.ERROR)
+            onProfileFailed()
+            closeModal()
+        }
+
         const onProfileCreateClick = () => {
             if (profileCreateBtn && userInput && StringUtils.isNullOrBlank(userInput.value)) {
                 DivButtonUtils.setDisable(profileCreateBtn, true) // так как ввод слушается с задержкой, то можно наткнуться на этот кейс. Удалять debounce НИЗЯ! Так оптимизированее малёха :)
                 return
             }
+            LoaderUtils.show()
             userInput?.blur()
-            DivButtonUtils.setDisable(profileCreateBtn, true) // Чтобы единожды выполнилось // todo: разблокировать в catch запроса если в ответе было о том что аккаунт занят
-            document.removeEventListener('keypress', onDocumentEnterClick) // todo: удалить когда успех запроса по созданию
-            console.log(`Создать профиль: ${profileDraft}`) // todo: логику закинуть
+            DivButtonUtils.setDisable(profileCreateBtn, true) // Чтобы единожды выполнилось
+            authorizedFetch( async token => {
+                return await createProfile(token, profileDraft)
+            })
+                .then(response => {
+                    if (response.status === 200) {
+                        response.json()
+                            .then(body => {
+                                if (body.isSuccess === true) {
+                                    LoaderUtils.hide()
+                                    document.removeEventListener('keypress', onDocumentEnterClick)
+                                    onProfileReceived(new User(body.imgUrl))
+                                    closeModal()
+                                } else {
+                                    LoaderUtils.hide()
+                                    NotificationUtils.showNotification('Профиль занят', NotificationUtils.ERROR)
+                                    setErrorClass(userInput)
+                                    DivButtonUtils.setDisable(profileCreateBtn, StringUtils.isNullOrBlank(profileDraft))
+                                }
+                            })
+                            .catch(e => {
+                                console.error(e)
+                                LoaderUtils.hide()
+                                onProfileCreateFailed()
+                            })
+                    } else {
+                        LoaderUtils.hide()
+                        onProfileCreateFailed()
+                    }
+                })
+                .catch(e => {
+                    console.error(e)
+                    LoaderUtils.hide()
+                    onProfileCreateFailed()
+                })
         }
 
         const onProfileDraftChange = name => {
@@ -676,14 +736,13 @@ function getCodeFromLocalStorage() {
 }
 
 /**
- * @returns User профиль пользователя.
+ * @returns профиль пользователя.
  * @throws LogoutError при ошибке получения профиля.
  */
 async function getProfile() {
     try {
         const response = await authorizedFetch(fetchProfile)
-        const profile = await response.json()
-        return new User(profile.imgUrl)
+        return await response.json()
     } catch (e) {
         // Если вдруг запрос профиля или сеть икнул[а], то с одной стороны у нас в localStorage валидные токены, а с другой, пользователь на UI не понимает авторизован ли он
         // Для простоты разлогиниваю его, чтобы ui и логика были консистентными.
@@ -718,14 +777,22 @@ async function runAuthentication(viewHolder) {
             }
         }
 
+        let profile = null
+        if (!isNewUser) {
+            profile = await getProfile()
+            isNewUser = !profile.hasProfile
+        }
+
         if (isNewUser) {
             LoaderUtils.hide()
-            await showProfileCreate(profile => {}, () => {
+            await showProfileCreate(
+                user => onProfileReceived(user),
+                () => {
                 authHelper.onLogout()
                 viewHolder.setLoading(false)
             })
         } else {
-            onProfileReceived(await getProfile())
+            onProfileReceived(new User(profile.imgUrl))
         }
     } catch (e) {
         if (e instanceof CodeExchangeError) {
@@ -763,5 +830,14 @@ function setActiveClass(element, isActive = true) {
         }
     } else {
         element.classList.remove(activeClass)
+    }
+}
+
+function setErrorClass(element, isError = true) {
+    const errorClass = 'error'
+    if (isError && !element.classList.contains(errorClass)) {
+        element.classList.add(errorClass)
+    } else {
+        element.classList.remove(errorClass)
     }
 }

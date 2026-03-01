@@ -1105,3 +1105,7 @@ h3 {
 .profile-input:focus {
     box-shadow: 0 0 0 3px var(--secondary);
 }
+
+.profile-input.error {
+    box-shadow: 0 0 0 3px var(--accent);
+}
