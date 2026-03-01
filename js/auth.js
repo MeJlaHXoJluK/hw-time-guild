@@ -542,7 +542,7 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
     try {
         LoaderUtils.show()
         const profilesResponse = await authorizedFetch(fetchUnusedProfiles)
-        console.log(`response status: ${profilesResponse}`)
+        console.log(`response status: ${profilesResponse.status}`)
         if (profilesResponse.status !== 200) {
             onProfileFailed()
             throw new Error((await profilesResponse.json()).message)
