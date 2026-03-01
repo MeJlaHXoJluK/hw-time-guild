@@ -208,7 +208,9 @@ class _ModalUtils {
     }
 
     close(modal) {
-        document.body.removeChild(modal)
+        if (document.body.contains(modal)) {
+            document.body.removeChild(modal)
+        }
     }
 
     #getContent(modal) {
