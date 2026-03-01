@@ -721,6 +721,7 @@ async function runAuthentication(viewHolder) {
         if (isNewUser) {
             LoaderUtils.hide()
             await showProfileCreate(profile => {}, () => {
+                console.log(`Create profile failed!`)
                 authHelper.removeCode()
                 updateUI(viewHolder, new UnknownUser())
                 viewHolder.setLoading(false)
