@@ -135,7 +135,7 @@ export const LoaderUtils = new _LoaderUtils()
 
 /**
  * =================================================================
- * ==================== Раздел ьодального окна =====================
+ * ==================== Раздел модального окна =====================
  * =================================================================
  */
 class _ModalUtils {
@@ -217,3 +217,28 @@ class _ModalUtils {
 }
 
 export const ModalUtils = new _ModalUtils()
+
+/**
+ * =================================================================
+ * ============ Раздел кнопок (div элементами сделанные) ===========
+ * =================================================================
+ */
+class _DivButtonUtils {
+    #disabledClass = 'disabled'
+
+    constructor() {}
+
+    isDisabled(element) {
+        return element.classList.contains(this.#disabledClass)
+    }
+
+    setDisable(element, isDisable = true) {
+        if (isDisable && !this.isDisabled(element)) {
+            element.classList.add(this.#disabledClass)
+        } else {
+            element.classList.remove(this.#disabledClass)
+        }
+    }
+}
+
+export const DivButtonUtils = new _DivButtonUtils()

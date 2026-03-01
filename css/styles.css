@@ -483,6 +483,13 @@ h3 {
     box-shadow: none;
 }
 
+.button.disabled {
+    user-select: none;
+    pointer-events: none;
+    opacity: .5;
+    background: #666666;
+}
+
 /* ===== NOTIFICATIONS ===== */
 .notifications-container {
     position: fixed;
@@ -1035,4 +1042,66 @@ h3 {
 .profile-item.tab-button,
 .profile-item.placeholder {
     padding: 0 24px;
+}
+
+.profiles-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 10px 4px;
+    border: none;
+}
+
+.profiles-row::-webkit-scrollbar {
+    height: 8px;
+}
+
+.profiles-row::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.profiles-row::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+    background-clip: content-box;
+}
+
+.profiles-row::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.profile-chip {
+    flex: 0 0 auto;
+    border-radius: 24px;
+    min-height: 44px;
+    padding: 10px 20px;
+    background-color: light-dark(#f2f4f7, #222731);
+    white-space: nowrap;
+    user-select: none;
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.profile-chip.active {
+    background-color: var(--secondary);
+    color: #ffffff;
+}
+
+.profile-input {
+    outline: none;
+    border: none;
+    appearance: none;
+    background: #f2f2f2;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: medium;
+    font-weight: bold;
+    color: #222222;
+
+    transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.profile-input:focus {
+    box-shadow: 0 0 0 3px var(--secondary);
 }

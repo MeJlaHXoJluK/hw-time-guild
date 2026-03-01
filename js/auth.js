@@ -1,4 +1,4 @@
-import { NotificationUtils, LoaderUtils, ModalUtils, StringUtils, ThemeUtils } from './utils.js'
+import {NotificationUtils, LoaderUtils, ModalUtils, DivButtonUtils, StringUtils, ThemeUtils} from './utils.js'
 
 const BASE_URL = 'https://afflpqpdllwiwsrtnuer.supabase.co/functions'
 
@@ -34,6 +34,12 @@ class UnauthorizedError extends Error {
 class CodeExchangeError extends Error {
     constructor() {
         super('Ошибка обмена кода');
+    }
+}
+
+class LogoutError extends Error {
+    constructor() {
+        super('Сценарий аутентификации не может быть продолжен');
     }
 }
 
@@ -245,7 +251,7 @@ async function authorizedFetch(_fetch = null) {
         throw new UnauthorizedError(`Can\`t fetch tokens! ${response}`)
     }
     try {
-        const { accessToken, refreshToken } = await response.json()
+        const {accessToken, refreshToken} = await response.json()
         authHelper.setAccessToken(accessToken)
         authHelper.setRefreshToken(refreshToken)
     } catch (e) {
@@ -316,7 +322,21 @@ async function fetchTokensByCode(code) {
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({ code: code })
+        body: JSON.stringify({code: code})
+    })
+}
+
+/**
+ * @param token accessToken для авторизованного получения данных.
+ * @returns Promise<Response> список профилей из которых можно выбрать профиль для сайта, иначе ошибка.
+ */
+async function fetchUnusedProfiles(token) {
+    return fetch(`${BASE_URL}/v1/unusedProfiles`, {
+        method: 'POST',
+        headers: {
+            "Authorization": getBearerToken(token),
+            "Content-Type": "application/json",
+        }
     })
 }
 
@@ -418,48 +438,9 @@ export function initAuth() {
 
     authHelper.setOnLogoutListener(() => updateUI(viewHolder, new UnknownUser()))
 
-    const onError = (e) => {
-        updateUI(viewHolder, new UnknownUser())
-        showProfileDeletedNotificationIfNeed()
-        console.error(e.message)
-    }
-
-    processCodeExchange()
-        .then(isShowAuthSuccessNotification => {
-            viewHolder.setLoading(true)
-
-            authorizedFetch(fetchProfile)
-                .then(response => {
-                    response.json()
-                        .then(profile => {
-                            if (isShowAuthSuccessNotification) {
-                                NotificationUtils.showNotification('Вход выполнен успешно', NotificationUtils.SUCCESS)
-                            }
-                            updateUI(viewHolder, new User(profile.imgUrl))
-                        })
-                        .catch(e => {
-                            // Если вдруг запрос профиля или сеть икнул[а], то с одной стороны у нас в localStorage валидные токены, а с другой, пользователь на UI не понимает авторизован ли он
-                            // Для простоты разлогиниваю его, чтобы ui и логика были консистентными.
-                            // Альтернативно можно было бы конечно просто дефолтную иконку профиля рисовать, НО, по мере увеличения профиля всё сломается.
-                            // Не откуда будет взять никнейм и т.д. Поэтому проще разлогинивать.
-                            authHelper.onLogout()
-                            showProfileDeletedNotificationIfNeed()
-                            console.error(e)
-                        })
-                })
-                .catch(e => onError(e))
-                .finally(() => {
-                    viewHolder.setLoading(false)
-                    console.log("End auth.")
-                })
-        })
-        .catch(e => {
-            viewHolder.setLoading(false)
-            if (e instanceof CodeExchangeError) {
-                NotificationUtils.showNotification('Ошибка при входе', NotificationUtils.ERROR)
-            }
-            onError(e)
-        })
+    runAuthentication(viewHolder)
+        .then(() => console.log("Auth end success"))
+        .catch(e => console.error(`Auth end with error: ${e}`))
 }
 
 /**
@@ -478,6 +459,164 @@ function buildTelegram() {
     script.setAttribute("data-size", "medium");
     script.setAttribute("data-auth-url", `${BASE_URL}/v1/tg_auth`);
     return script
+}
+
+function buildUsersRow(users, onUserCheck) {
+    const row = document.createElement('div')
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    row.addEventListener("mousedown", (e) => {
+        isDown = true;
+        row.style.cursor = "auto";
+        startX = e.pageX - row.offsetLeft;
+        scrollLeft = row.scrollLeft;
+    });
+
+    row.addEventListener("mouseleave", () => {
+        isDown = false;
+        row.style.cursor = "auto";
+    });
+
+    row.addEventListener("mouseup", () => {
+        isDown = false;
+        row.style.cursor = "auto";
+    });
+
+    row.addEventListener("mousemove", (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+
+        const x = e.pageX - row.offsetLeft;
+        const speed = (x - startX) * 1.5;
+        row.scrollLeft = scrollLeft - speed;
+    });
+
+    row.className = 'profiles-row'
+
+    const chips = users.map(user => {
+        const profileChip = document.createElement('div')
+        profileChip.className = 'profile-chip'
+        profileChip.textContent = user
+        profileChip.addEventListener('click', () => {
+            chips.forEach(chip => {
+                setActiveClass(chip, chip.textContent === user)
+            })
+            row.prepend(profileChip)
+            onUserCheck(user)
+        })
+        return profileChip
+    })
+    row.append(...chips)
+    return row
+}
+
+/**
+ * @param onTextChanged слушатель ввода.
+ * @returns виджет поля ввода.
+ */
+function buildUserInput(onTextChanged) {
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.placeholder = 'Введите игровой никнейм'
+    input.className = 'profile-input'
+    input.style.marginTop = '16px'
+
+    input.addEventListener('input', e => {
+        onTextChanged(e.target.value)
+    })
+    return input
+}
+
+/**
+ * Окно создания профиля нового пользователя
+ * @param onProfileReceived колбек принимающий User в случае успешного создания профиля.
+ */
+async function showProfileCreate(onProfileReceived) {
+    // todo: какая-то дизайн-система простенькая нужна.
+    const modal = ModalUtils.buildModal()
+    const closeModal = () => ModalUtils.close(modal)
+
+    try {
+        LoaderUtils.show()
+        const profilesResponse = await authorizedFetch(fetchUnusedProfiles)
+        const users = (await profilesResponse.json()).profiles.map(profile => profile.name)
+
+        let profileDraft = null
+
+        let usersRow
+        let userInput
+        let profileCreateBtn
+
+        const onDocumentEnterClick = (e) => {
+            if (profileCreateBtn && e.key === "Enter" && !DivButtonUtils.isDisabled(profileCreateBtn)) {
+                e.preventDefault()
+                onProfileCreateClick()
+            }
+        }
+
+        const onProfileCreateClick = () => {
+            if (profileCreateBtn && userInput && StringUtils.isNullOrBlank(userInput.value)) {
+                DivButtonUtils.setDisable(profileCreateBtn, true) // так как ввод слушается с задержкой, то можно наткнуться на этот кейс. Удалять debounce НИЗЯ! Так оптимизированее малёха :)
+                return
+            }
+            userInput?.blur()
+            DivButtonUtils.setDisable(profileCreateBtn, true) // Чтобы единожды выполнилось // todo: разблокировать в catch запроса если в ответе было о том что аккаунт занят
+            document.removeEventListener('keypress', onDocumentEnterClick) // todo: удалить когда успех запроса по созданию
+            console.log(`Создать профиль: ${profileDraft}`) // todo: логику закинуть
+        }
+
+        const onProfileDraftChange = name => {
+            profileDraft = name
+            if (profileCreateBtn) {
+                DivButtonUtils.setDisable(profileCreateBtn, StringUtils.isNullOrBlank(profileDraft))
+            }
+        }
+
+        profileCreateBtn = ModalUtils.buildButton('Войти', 'button--primary', onProfileCreateClick)
+        DivButtonUtils.setDisable(profileCreateBtn, true)
+
+        usersRow = buildUsersRow(users, name => {
+            onProfileDraftChange(name)
+            if (userInput) {
+                userInput.value = name
+            }
+        })
+        userInput = buildUserInput(debounce(name => {
+            onProfileDraftChange(name)
+            if (usersRow) {
+                Array.from(usersRow.children).forEach(child => {
+                    const isActive = child.textContent === name
+                    setActiveClass(child, isActive)
+                    if (isActive) {
+                        usersRow.prepend(child)
+                    }
+                })
+            }
+        }))
+
+        document.addEventListener("keypress", onDocumentEnterClick);
+
+        const elements = [
+            ModalUtils.buildClose(() => closeModal()),
+            ModalUtils.buildTitle('Пожалуйста назовитесь'),
+            usersRow,
+            userInput,
+            profileCreateBtn,
+        ].filter(item => item != null)
+
+        ModalUtils.addContent(
+            modal,
+            ...elements
+        )
+        ModalUtils.show(modal)
+    } catch (e) {
+        closeModal()
+    } finally {
+        LoaderUtils.hide()
+    }
 }
 
 /**
@@ -503,31 +642,119 @@ function showProfileDeletedNotificationIfNeed() {
 }
 
 /**
- * @returns true, если нужно показать нотификацию об успешной аутентификации, иначе false.
+ * @param code код для обмена на токены. Бекенд присылает при авторизации через телеграм с redirect-ом.
+ * @returns true если пользователь новый, иначе false.
+ * @throws CodeExchangeError в случае ошибки бека | Error при записи токенов.
  */
-async function processCodeExchange() {
-    const error = authHelper.getCodeError()
-    if (error) {
-        authHelper.removeCode()
-        throw new CodeExchangeError()
-    }
-    const code = authHelper.getCode()
-    if (!code) {
-        authHelper.removeCode()
-        return false
-    }
+async function processCodeExchange(code) {
     try {
-        LoaderUtils.show()
         const response = await fetchTokensByCode(code)
-        const { accessToken, refreshToken } = await response.json()
+        const {accessToken, refreshToken, isNew} = await response.json()
         authHelper.setAccessToken(accessToken)
         authHelper.setRefreshToken(refreshToken)
-        return true
+        return isNew
     } catch (e) {
         console.error(`on exchange code was error: ${e}`)
         throw new CodeExchangeError()
+    }
+}
+
+/**
+ * @return code из localStorage
+ * @throws CodeExchangeError если вместо кода записана ошибка от бекенда в localStorage
+ */
+function getCodeFromLocalStorage() {
+    const error = authHelper.getCodeError()
+    if (error) {
+        throw new CodeExchangeError()
+    }
+    return authHelper.getCode()
+}
+
+/**
+ * @returns User профиль пользователя.
+ * @throws LogoutError при ошибке получения профиля.
+ */
+async function getProfile() {
+    try {
+        const response = await authorizedFetch(fetchProfile)
+        const profile = await response.json()
+        return new User(profile.imgUrl)
+    } catch (e) {
+        // Если вдруг запрос профиля или сеть икнул[а], то с одной стороны у нас в localStorage валидные токены, а с другой, пользователь на UI не понимает авторизован ли он
+        // Для простоты разлогиниваю его, чтобы ui и логика были консистентными.
+        // Альтернативно можно было бы конечно просто дефолтную иконку профиля рисовать, НО, по мере увеличения профиля всё сломается.
+        // Не откуда будет взять никнейм и т.д. Поэтому проще разлогинивать.
+        throw new LogoutError()
+    }
+}
+
+/**
+ * Сценарий аутентификации.
+ * @param viewHolder сущность для управления UI частью профиля.
+ */
+async function runAuthentication(viewHolder) {
+    try {
+        viewHolder.setLoading(true) // со старта сценария аутентификации показать скелетоны на профиле
+        const code = getCodeFromLocalStorage()
+
+        let isShowAuthSuccessNotification = false
+        let isNewUser = false
+
+        if (code) {
+            LoaderUtils.show()
+            isNewUser = await processCodeExchange(code)
+            isShowAuthSuccessNotification = true
+        }
+
+        const onProfileReceived = (profile) => {
+            updateUI(viewHolder, profile)
+            if (isShowAuthSuccessNotification) {
+                NotificationUtils.showNotification('Вход выполнен успешно', NotificationUtils.SUCCESS)
+            }
+        }
+
+        if (isNewUser) {
+            LoaderUtils.hide()
+            await showProfileCreate()
+        } else {
+            onProfileReceived(await getProfile())
+        }
+    } catch (e) {
+        if (e instanceof CodeExchangeError) {
+            NotificationUtils.showNotification('Ошибка при входе', NotificationUtils.ERROR)
+        }
+        if (e instanceof LogoutError) {
+            authHelper.onLogout()
+            throw e // нет смысла обновлять UI ниже, он на logout итак обновится
+        }
+        updateUI(viewHolder, new UnknownUser())
+        throw e
     } finally {
-        LoaderUtils.hide()
         authHelper.removeCode()
+        LoaderUtils.hide()
+        viewHolder.setLoading(false)
+        showProfileDeletedNotificationIfNeed()
+    }
+}
+
+function debounce(fn, delay = 300) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            fn.apply(this, args);
+        }, delay);
+    }
+}
+
+function setActiveClass(element, isActive = true) {
+    const activeClass = 'active'
+    if (isActive) {
+        if (!element.classList.contains(activeClass)) {
+            element.classList.add(activeClass)
+        }
+    } else {
+        element.classList.remove(activeClass)
     }
 }
