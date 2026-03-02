@@ -1,4 +1,8 @@
-import {NotificationUtils, LoaderUtils, ModalUtils, DivButtonUtils, StringUtils, ThemeUtils} from './utils.js'
+import { NotificationUtils, LoaderUtils, ModalUtils, DivButtonUtils, StringUtils, ThemeUtils } from './utils.js'
+
+const authState = {
+    user: null
+}
 
 const BASE_URL = 'https://afflpqpdllwiwsrtnuer.supabase.co/functions'
 
@@ -17,10 +21,12 @@ class UnknownUser extends BaseUser {
 
 class User extends BaseUser {
     imgUrl = null
+    name = null
 
-    constructor(imgUrl = null) {
+    constructor(imgUrl = null, name = null) {
         super();
         this.imgUrl = imgUrl
+        this.name = name
     }
 }
 
@@ -397,7 +403,7 @@ function updateUI(viewHolder, user) {
             ModalUtils.addContent(
                 logoutModal,
                 ModalUtils.buildClose(() => ModalUtils.close(logoutModal)),
-                ModalUtils.buildTitle('Действия над профилем:'),
+                ModalUtils.buildTitle(`Действия над профилем ${user.name}:`),
                 ModalUtils.buildButton('Выйти', 'button--primary', () => {
                     authHelper.onLogout(true)
                     closeLogout()
@@ -558,8 +564,11 @@ function buildUserInput(onTextChanged) {
  */
 async function showProfileCreate(onProfileReceived, onProfileFailed) {
     // todo: какая-то дизайн-система простенькая нужна.
-    const modal = ModalUtils.buildModal()
-    const closeModal = () => ModalUtils.close(modal)
+    const onModalClose = () => {
+        authHelper.onLogout(!authState.user)
+    }
+    const modal = ModalUtils.buildModal(onModalClose)
+    const closeModal = () => ModalUtils.close(modal, onModalClose)
 
     try {
         LoaderUtils.show()
@@ -607,7 +616,7 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
                                 if (body.isSuccess === true) {
                                     LoaderUtils.hide()
                                     document.removeEventListener('keypress', onDocumentEnterClick)
-                                    onProfileReceived(new User(body.imgUrl))
+                                    onProfileReceived(new User(body.imgUrl, body.name))
                                     closeModal()
                                 } else {
                                     LoaderUtils.hide()
@@ -788,13 +797,17 @@ async function runAuthentication(viewHolder) {
         if (isNewUser) {
             LoaderUtils.hide()
             await showProfileCreate(
-                user => onProfileReceived(user),
+                user => {
+                    authState.user = user
+                    onProfileReceived(user)
+                },
                 () => {
                 authHelper.onLogout()
                 viewHolder.setLoading(false)
             })
         } else {
-            onProfileReceived(new User(profile.imgUrl))
+            authState.user = new User(profile.imgUrl, profile.name)
+            onProfileReceived(authState.user)
         }
     } catch (e) {
         if (e instanceof CodeExchangeError) {

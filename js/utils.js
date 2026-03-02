@@ -150,7 +150,7 @@ class _ModalUtils {
         this.#getContent(modal).append(...elements)
     }
 
-    buildModal() {
+    buildModal(onModalClose = () => {}) {
         const modal = document.createElement('div')
         const modalContent = document.createElement('div')
         modal.className = this.#container
@@ -164,13 +164,13 @@ class _ModalUtils {
 
         modal.addEventListener(this.#onClick, (e) => {
             if (e.target === modal) {
-                this.close(modal)
+                this.close(modal, onModalClose)
             }
         });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && modal.style.display === 'flex') {
-                this.close(modal)
+                this.close(modal, onModalClose)
             }
         });
 
@@ -207,9 +207,10 @@ class _ModalUtils {
         document.body.appendChild(modal)
     }
 
-    close(modal) {
+    close(modal, onModalClose) {
         if (document.body.contains(modal)) {
             document.body.removeChild(modal)
+            onModalClose()
         }
     }
 
