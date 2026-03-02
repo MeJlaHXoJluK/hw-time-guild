@@ -150,7 +150,7 @@ class _ModalUtils {
         this.#getContent(modal).append(...elements)
     }
 
-    buildModal(onModalClose = () => {}) {
+    buildModal(onModalClose = (() => {})) {
         const modal = document.createElement('div')
         const modalContent = document.createElement('div')
         modal.className = this.#container
@@ -207,7 +207,7 @@ class _ModalUtils {
         document.body.appendChild(modal)
     }
 
-    close(modal, onModalClose) {
+    close(modal, onModalClose = (() => {})) {
         if (document.body.contains(modal)) {
             document.body.removeChild(modal)
             onModalClose()
