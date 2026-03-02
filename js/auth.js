@@ -565,6 +565,7 @@ function buildUserInput(onTextChanged) {
 async function showProfileCreate(onProfileReceived, onProfileFailed) {
     // todo: какая-то дизайн-система простенькая нужна.
     const onModalClose = () => {
+        console.log(`при закрытии user: ${!authState.user}`)
         authHelper.onLogout(!authState.user)
     }
     const modal = ModalUtils.buildModal(onModalClose)
@@ -616,6 +617,7 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
                                 if (body.isSuccess === true) {
                                     LoaderUtils.hide()
                                     document.removeEventListener('keypress', onDocumentEnterClick)
+                                    console.log(`Отдаю ${body.name}`)
                                     onProfileReceived(new User(body.imgUrl, body.name))
                                     closeModal()
                                 } else {
@@ -781,7 +783,8 @@ async function runAuthentication(viewHolder) {
             isShowAuthSuccessNotification = true
         }
 
-        const onProfileReceived = (profile) => {
+        const onProfileReceived = profile => {
+            console.log(`Полученный профиль: ${profile.name}`)
             updateUI(viewHolder, profile)
             if (isShowAuthSuccessNotification) {
                 NotificationUtils.showNotification('Вход выполнен успешно', NotificationUtils.SUCCESS)
