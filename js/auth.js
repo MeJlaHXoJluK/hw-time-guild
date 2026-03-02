@@ -525,6 +525,7 @@ function buildUsersRow(users, onUserCheck) {
                 setActiveClass(chip, chip.textContent === user)
             })
             row.prepend(profileChip)
+            row.scrollTo({ left: 0, behavior: 'smooth' })
             onUserCheck(user)
         })
         return profileChip
@@ -656,6 +657,7 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
                     setActiveClass(child, isActive)
                     if (isActive) {
                         usersRow.prepend(child)
+                        usersRow.scrollTo({ left: 0, behavior: 'smooth' })
                     }
                 })
             }
