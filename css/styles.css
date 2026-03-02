@@ -1153,3 +1153,11 @@ h3 {
     filter: blur(20px) saturate(130%);
     z-index: 1;
 }
+
+/* ФУТЕР */
+footer {
+    margin-top: 32px;
+    padding: 24px 12px;
+    background: linear-gradient(to bottom, var(--bg-secondary), #0c0e12);
+    border-top: 1px solid var(--border);
+}
