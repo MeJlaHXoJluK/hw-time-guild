@@ -1109,3 +1109,47 @@ h3 {
 .profile-input.error {
     box-shadow: 0 0 0 3px var(--accent);
 }
+
+/* PROFILE AVATAR */
+.container-avatar {
+    display: flex;
+    margin: 20px;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    justify-content: center;
+}
+
+.avatar img {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    object-fit: cover;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+}
+
+.avatar::before {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+
+    background:
+            radial-gradient(circle at center, rgba(255,255,255,0.5) 0%, transparent 40%),
+            linear-gradient(218deg, rgb(255 0 0 / 80%), transparent 60%),
+            linear-gradient(120deg, rgb(0 255 0 / 80%), transparent 60%),
+            linear-gradient(330deg, rgb(0 0 255 / 80%), transparent 60%);
+
+    filter: blur(20px) saturate(130%);
+    z-index: 1;
+}

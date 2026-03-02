@@ -121,7 +121,7 @@ class TokenHelper {
         this.#removeTokens()
         this._onLogoutListener?.()
         if (isRefreshPage) {
-            window.location.assign(window.location.href)
+            refreshPage()
         }
     }
 
@@ -144,15 +144,16 @@ class TokenHelper {
 }
 
 class ProfileViewHolder {
+
+    static _defaultProfileIconNight = './images/ic_person_night.svg'
+    static _defaultProfileIconDay = './images/ic_person_day.svg'
+
     constructor() {
         this.container = document.getElementById('profile-container')
         this.text = document.getElementById('profile-text')
         this.icon = document.getElementById('profile-icon')
 
         this.loadingClass = 'loading'
-
-        this._defaultProfileIconNight = './images/ic_person_night.svg'
-        this._defaultProfileIconDay = './images/ic_person_day.svg'
 
         this._defaultLoginIconNight = './images/ic_login_night.svg'
         this._defaultLoginIconDay = './images/ic_login_day.svg'
@@ -203,7 +204,7 @@ class ProfileViewHolder {
         this.icon.onload = () => this.icon.classList.remove(skeletonClass)
         this.icon.onerror = () => this.icon.classList.remove(skeletonClass)
 
-        this.icon.src = imgUrl != null ? imgUrl : (isAuth ? this.getDefaultPersonIcon(ThemeUtils.isDarkTheme()) : this.getDefaultLoginIcon(ThemeUtils.isDarkTheme()))
+        this.icon.src = imgUrl != null ? imgUrl : (isAuth ? ProfileViewHolder.getDefaultPersonIcon(ThemeUtils.isDarkTheme()) : this.getDefaultLoginIcon(ThemeUtils.isDarkTheme()))
     }
 
     setProfileClickListener(listener = null) {
@@ -212,13 +213,13 @@ class ProfileViewHolder {
 
     onThemeChange(isDark) {
         if (this.isDefaultProfileIcon(this.icon.src)) {
-            this.setIcon(this.getDefaultPersonIcon(isDark))
+            this.setIcon(ProfileViewHolder.getDefaultPersonIcon(isDark))
         } else if (this.isDefaultLoginIcon(this.icon.src)) {
             this.setIcon(this.getDefaultLoginIcon(isDark))
         }
     }
 
-    getDefaultPersonIcon(isDark) {
+    static getDefaultPersonIcon(isDark) {
         return isDark ? this._defaultProfileIconNight : this._defaultProfileIconDay
     }
 
@@ -227,7 +228,7 @@ class ProfileViewHolder {
     }
 
     isDefaultProfileIcon(url) {
-        return StringUtils.stringIncludeSafely(url, this._defaultProfileIconNight?.slice(1)) || StringUtils.stringIncludeSafely(url, this._defaultProfileIconDay?.slice(1))
+        return StringUtils.stringIncludeSafely(url, ProfileViewHolder._defaultProfileIconNight?.slice(1)) || StringUtils.stringIncludeSafely(url, ProfileViewHolder._defaultProfileIconDay?.slice(1))
     }
 
     isDefaultLoginIcon(url) {
@@ -367,6 +368,23 @@ async function createProfile(token, profileName) {
 }
 
 /**
+ * @param token accessToken для авторизации запроса
+ * @param avatar file картинка формата jpg/png для аватара
+ * @return успешный ответ если аватарка для профиля установлена, иначе ошибка или status !== 200.
+ */
+async function uploadAvatar(token, avatar) {
+    const formData = new FormData()
+    formData.append('file', avatar)
+    return fetch(`${BASE_URL}/v1/uploadProfileImage`, {
+        method: 'POST',
+        headers: {
+            "Authorization": getBearerToken(token),
+        },
+        body: formData
+    })
+}
+
+/**
  * @param token accessToken
  * @returns Bearer + пробел + accessToken
  */
@@ -403,6 +421,7 @@ function updateUI(viewHolder, user) {
             ModalUtils.addContent(
                 logoutModal,
                 ModalUtils.buildClose(() => ModalUtils.close(logoutModal)),
+                buildAvatar(),
                 ModalUtils.buildTitle(`Действия над профилем ${user.name}:`),
                 ModalUtils.buildButton('Выйти', 'button--primary', () => {
                     authHelper.onLogout(true)
@@ -442,7 +461,8 @@ function updateUI(viewHolder, user) {
                         }),
                     )
                     ModalUtils.show(confirmModal)
-                })
+                }),
+                buildUploadAvatarBtn(),
             )
             ModalUtils.show(logoutModal)
         }
@@ -556,6 +576,77 @@ function buildUserInput(onTextChanged) {
     })
     input.addEventListener('focus', () => setErrorClass(input, false))
     return input
+}
+
+/**
+ * @return view с аватаром пользователя
+ */
+function buildAvatar() {
+    const container = document.createElement('div')
+    container.className = 'container-avatar'
+    const imageContainer = document.createElement('div')
+    imageContainer.className = 'avatar'
+    imageContainer.style.display = 'none'
+    const image = document.createElement('img')
+
+    const skeletonClass = 'skeleton'
+    image.classList.add(skeletonClass)
+    image.onload = () => {
+        image.classList.remove(skeletonClass)
+        imageContainer.style.display = 'block'
+    }
+    image.onerror = () => image.classList.remove(skeletonClass)
+
+    image.src = authState.user?.imgUrl ? authState.user.imgUrl : ProfileViewHolder.getDefaultPersonIcon(ThemeUtils.isDarkTheme())
+    image.alt = 'Аватар пользователя'
+    imageContainer.appendChild(image)
+    container.appendChild(imageContainer)
+    return container
+}
+
+/**
+ * @return Кнопку загрузки аватара.
+ */
+function buildUploadAvatarBtn() {
+    const button = document.createElement('div')
+    button.classList.add('button--primary', 'button')
+    button.textContent = 'Загрузить аватар'
+
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/jpeg, image/png'
+    input.hidden = true
+
+    input.addEventListener('change', () => {
+        const file = input.files[0]
+        if (file) {
+            LoaderUtils.show()
+            authorizedFetch(async token => {
+                return await uploadAvatar(token, file)
+            })
+                .then(response => {
+                    if (response.status === 200) {
+                        refreshPage()
+                    } else {
+                        NotificationUtils.showNotification('Что-то не так на сервере', NotificationUtils.ERROR)
+                    }
+                })
+                .catch(e => {
+                    console.error(e)
+                    NotificationUtils.showNotification('Ошибка загрузки аватара', NotificationUtils.ERROR)
+                })
+                .finally(() => {
+                    LoaderUtils.hide()
+                })
+        }
+    })
+
+    button.addEventListener('click', e => {
+        input.click()
+    })
+
+    button.appendChild(input)
+    return button
 }
 
 /**
@@ -857,4 +948,8 @@ function setErrorClass(element, isError = true) {
     } else {
         element.classList.remove(errorClass)
     }
+}
+
+function refreshPage() {
+    window.location.assign(window.location.href)
 }
