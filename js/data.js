@@ -125,7 +125,7 @@ export class UserRepository {
     static async deleteProfile() {
         try {
             const response = await authorizedFetch(UserApi.deleteProfile)
-            if (response !== 200) {
+            if (response.status !== 200) {
                 throw new Error('Ошибка! Возможно проблема на сервере')
             }
         } catch (e) {
