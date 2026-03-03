@@ -85,10 +85,10 @@ export class UserRepository {
             if (response.status !== 200) {
                 throw new Error(body.message)
             }
-            if (!response.profiles || response.profiles.length === 0) {
+            if (!body.profiles || body.profiles.length === 0) {
                 throw new Error('Список профилей пуст')
             }
-            return response.profiles
+            return body.profiles
         } catch (e) {
             console.error(e)
             return null
@@ -160,7 +160,7 @@ export class UserRepository {
     static async processCodeExchange(code) {
         try {
             const response = await UserApi.fetchTokensByCode(code)
-            const {accessToken, refreshToken, isNew} = await response.json()
+            const { accessToken, refreshToken, isNew } = await response.json()
             TokenHelper.setAccessToken(accessToken)
             TokenHelper.setRefreshToken(refreshToken)
             return isNew
