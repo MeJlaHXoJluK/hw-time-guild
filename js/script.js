@@ -187,15 +187,15 @@ class App {
         this.state.currentEditIndex = index;
         const player = this.state.players[index];
         document.getElementById('modalTitle').textContent = 'Редактировать игрока';
-        document.getElementById('nick').value = player.nick || '';
-        document.getElementById('maxLevel').value = player.maxLevel || '?';
-        document.getElementById('withGreat').value = player.withGreat || '?';
+        document.getElementById('nick').value = player.name || '';
+        document.getElementById('maxLevel').value = player.adventure_lvl || '?';
+        document.getElementById('withGreat').value = this.#isPlayerWithGreat(player) || '?';
         document.getElementById('role').value = player.role || 'Участник';
         document.getElementById('status').value = player.status || 'Активен';
         document.getElementById('timezone').value = player.timezone || '';
-        document.getElementById('activeHours').value = player.activeHours || '';
+        document.getElementById('activeHours').value = player.activity || '';
         document.getElementById('class').value = player.class || '';
-        document.getElementById('telegram').value = player.telegram || '';
+        document.getElementById('telegram').value = player.tg_name || '';
         document.getElementById('comment').value = player.comment || '';
         document.getElementById('playerModal').style.display = 'flex';
     }
@@ -251,8 +251,9 @@ class App {
             // С Великим
             const tdGreat = document.createElement('td');
             let greatText = '❓';
-            if (player.hw_goodwin_status === 'YES') greatText = '✅';
-            if (player.hw_goodwin_status === 'NO') greatText = '❌';
+            const withGreat = this.#isPlayerWithGreat(player)
+            if (withGreat) greatText = '✅';
+            if (withGreat) greatText = '❌';
             tdGreat.textContent = greatText;
             row.appendChild(tdGreat);
             // Роль
@@ -491,6 +492,16 @@ class App {
             this.state.playersController?.abort()
         }
         this.loadPlayersData()
+    }
+
+    #isPlayerWithGreat(player) {
+        if (player.hw_goodwin_status === 'YES') {
+            return true
+        }
+        if (player.hw_goodwin_status === 'NO') {
+            return false
+        }
+        return null
     }
 }
 
