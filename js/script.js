@@ -53,7 +53,7 @@ class App {
     initPlayersTable() {
         this.initSorting();
         this.initEditMode();
-        this.initAddPlayer();
+       // this.initAddPlayer(); todo: Выглядит так, что не нужно пока. Если пользак авторизовался впервые, то под него будет заведена строка, иначе у него итак строка есть.
         this.initFormSubmit();
     }
 
@@ -107,7 +107,7 @@ class App {
             if (this.state.isEditMode) {
                 editBtn.textContent = '❌ Выйти из режима редактирования';
                 editBtn.classList.remove('button--secondary');
-                addBtn.style.display = 'inline-flex';
+               // addBtn.style.display = 'inline-flex';
                 actionsColumn.style.display = 'table-cell';
                 document.querySelectorAll('.actions-column').forEach(cell => {
                     cell.style.display = 'table-cell';
@@ -124,20 +124,20 @@ class App {
         });
     }
 
-    initAddPlayer() {
-        const addBtn = document.getElementById('addPlayerBtn');
-        const modal = document.getElementById('playerModal');
-        const cancelBtn = document.getElementById('cancelBtn');
-        addBtn.addEventListener('click', () => {
-            this.state.currentEditIndex = -1;
-            document.getElementById('modalTitle').textContent = 'Добавить игрока';
-            document.getElementById('playerForm').reset();
-            modal.style.display = 'flex';
-        });
-        cancelBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
-    }
+    // initAddPlayer() {
+    //     const addBtn = document.getElementById('addPlayerBtn');
+    //     const modal = document.getElementById('playerModal');
+    //     const cancelBtn = document.getElementById('cancelBtn');
+    //     addBtn.addEventListener('click', () => {
+    //         this.state.currentEditIndex = -1;
+    //         document.getElementById('modalTitle').textContent = 'Добавить игрока';
+    //         document.getElementById('playerForm').reset();
+    //         modal.style.display = 'flex';
+    //     });
+    //     cancelBtn.addEventListener('click', () => {
+    //         modal.style.display = 'none';
+    //     });
+    // }
 
     initFormSubmit() {
         const form = document.getElementById('playerForm');
@@ -228,13 +228,10 @@ class App {
 
     renderPlayersTable() {
         const tbody = document.getElementById('playersTableBody');
-        if (this.state.isPlayersFetching) {
-            LoaderUtils.showNonBlockingLoader(tbody)
-            return
-        } else {
-            LoaderUtils.hideNonBlockingLoader(tbody)
-        }
         tbody.innerHTML = '';
+        if (!this.state.players) {
+            return
+        }
         this.state.players.forEach((player, index) => {
             const row = document.createElement('tr');
             // Номер
@@ -354,6 +351,8 @@ class App {
         localStorage.removeItem('hw_guild_players')
         this.state.isPlayersFetching = true
         this.state.playersController = new AbortController()
+        const players = document.getElementById('players');
+        LoaderUtils.showNonBlockingLoader(players)
         UserRepository.getAllProfiles(this.state.playersController)
             .then(profiles => {
                 this.state.players = profiles
@@ -364,9 +363,9 @@ class App {
             })
             .finally(() => {
                 this.state.isPlayersFetching = false
+                LoaderUtils.hideNonBlockingLoader(players)
                 this.renderPlayersTable()
             })
-        this.renderPlayersTable()
     }
 
     // ===== LIGHTBOX =====

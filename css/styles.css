@@ -560,18 +560,16 @@ h3 {
 
 /* ===== NON BLOCKING LOADER ===== */
 .nonBlockingLoaderContainer {
-    position: relative;
+    position: static;
+    padding: 20px 0;
+    display: block;
+    width: 100%;
 }
 
 .nonBlockingLoaderWrap {
-    position: absolute;
-    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.02), rgba(0,0,0,0.04));
-    backdrop-filter: blur(2px);
-    border-radius: var(--radius);
 }
 
 .nonBlockingLoader {

@@ -127,6 +127,9 @@ class _LoaderUtils {
     }
 
     showNonBlockingLoader(element) {
+        if (this.getNonBlockingLoader(element)) {
+            return
+        }
         const container = document.createElement('div')
         const containerWrap = document.createElement('div')
         const loader = document.createElement('div')
