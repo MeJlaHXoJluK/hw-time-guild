@@ -1,5 +1,5 @@
 import { NotificationUtils, LoaderUtils, ModalUtils, DivButtonUtils, StringUtils, ThemeUtils, refreshPage } from './utils.js'
-import { TokenHelper, BASE_URL } from "./api.js";
+import { TokenHelper, BASE_URL } from './api.js'
 import {
     UserRepository,
     UnknownUser,

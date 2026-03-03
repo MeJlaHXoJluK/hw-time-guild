@@ -1,4 +1,4 @@
-import { StringUtils, refreshPage } from "./utils";
+import { StringUtils, refreshPage } from './utils.js'
 
 export const BASE_URL = 'https://afflpqpdllwiwsrtnuer.supabase.co/functions'
 

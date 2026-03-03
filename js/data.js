@@ -1,4 +1,4 @@
-import { UserApi, authorizedFetch, TokenHelper } from "./api.js"
+import { UserApi, authorizedFetch, TokenHelper } from './api.js'
 
 export class BaseUser {
 
