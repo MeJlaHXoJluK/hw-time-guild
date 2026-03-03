@@ -98,9 +98,11 @@ export class UserRepository {
     /**
      * @returns Список всех профилей для таблицы, иначе null.
      */
-    static async getAllProfiles() {
+    static async getAllProfiles(controller) {
         try {
-            const response = await authorizedFetch(UserApi.fetchAllProfiles)
+            const response = await authorizedFetch(async token => {
+                return await UserApi.fetchAllProfiles(token, controller)
+            })
             if (response.status !== 200) {
                 throw new Error(`Ошибка с сервера при получении всех профилей: ${response.status}`)
             }

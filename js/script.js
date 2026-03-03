@@ -1,5 +1,5 @@
 import { featureToggles } from './feature_toggles.js';
-import { NotificationUtils } from './utils.js'
+import { LoaderUtils, NotificationUtils } from './utils.js'
 import { initAuth } from './auth.js'
 import { UserRepository } from './data.js'
 
@@ -8,6 +8,8 @@ class App {
         this.state = {
             activeTab: 'schemes',
             isEditMode: false,
+            isPlayersFetching: false,
+            playersController: null,
             players: [],
             sortBy: {field: null, direction: 'asc'},
             currentEditIndex: -1
@@ -21,7 +23,7 @@ class App {
         this.initLightbox();
         this.initModal();
         this.initNotifications();
-        initAuth()
+        initAuth(() => this.onLogin())
         this.loadPlayersData();
         featureToggles.forEach(toggle => toggle.invoke());
     }
@@ -226,6 +228,12 @@ class App {
 
     renderPlayersTable() {
         const tbody = document.getElementById('playersTableBody');
+        if (this.state.isPlayersFetching) {
+            LoaderUtils.showNonBlockingLoader(tbody)
+            return
+        } else {
+            LoaderUtils.hideNonBlockingLoader(tbody)
+        }
         tbody.innerHTML = '';
         this.state.players.forEach((player, index) => {
             const row = document.createElement('tr');
@@ -236,18 +244,18 @@ class App {
             row.appendChild(tdNumber);
             // Ник
             const tdNick = document.createElement('td');
-            tdNick.textContent = player.nick || '-';
+            tdNick.textContent = player.name || '-';
             row.appendChild(tdNick);
             // Макс. уровень
             const tdLevel = document.createElement('td');
-            tdLevel.textContent = player.maxLevel || '?';
-            tdLevel.className = this.getLevelClass(player.maxLevel);
+            tdLevel.textContent = player.adventure_lvl || '?';
+            tdLevel.className = this.getLevelClass(player.adventure_lvl);
             row.appendChild(tdLevel);
             // С Великим
             const tdGreat = document.createElement('td');
             let greatText = '❓';
-            if (player.withGreat === '+') greatText = '✅';
-            if (player.withGreat === '-') greatText = '❌';
+            if (player.hw_goodwin_status === 'YES') greatText = '✅';
+            if (player.hw_goodwin_status === 'NO') greatText = '❌';
             tdGreat.textContent = greatText;
             row.appendChild(tdGreat);
             // Роль
@@ -266,7 +274,7 @@ class App {
             row.appendChild(tdTimezone);
             // Время активности
             const tdActiveHours = document.createElement('td');
-            tdActiveHours.textContent = player.activeHours || '-';
+            tdActiveHours.textContent = player.activity || '-';
             row.appendChild(tdActiveHours);
             // Класс
             const tdClass = document.createElement('td');
@@ -274,12 +282,12 @@ class App {
             row.appendChild(tdClass);
             // Telegram
             const tdTelegram = document.createElement('td');
-            if (player.telegram) {
+            if (player.tg_name) {
                 const telegramLink = document.createElement('a');
-                telegramLink.href = player.telegram.startsWith('http') ? player.telegram : `https://t.me/${player.telegram.replace('@', '')}`;
+                telegramLink.href = player.tg_name.startsWith('http') ? player.tg_name : `https://t.me/${player.tg_name.replace('@', '')}`;
                 telegramLink.target = '_blank';
                 telegramLink.rel = 'noopener noreferrer';
-                telegramLink.textContent = player.telegram;
+                telegramLink.textContent = player.tg_name;
                 telegramLink.className = 'telegram-link';
                 tdTelegram.appendChild(telegramLink);
             } else {
@@ -293,6 +301,10 @@ class App {
             tdComment.title = commentText;
             tdComment.className = 'table-comment';
             row.appendChild(tdComment);
+            if (!player.isEditable) {
+                tbody.appendChild(row);
+                return // действия не поддерживаются для пользователя
+            }
             // Действия
             const tdActions = document.createElement('td');
             tdActions.className = 'actions-column';
@@ -335,27 +347,26 @@ class App {
     }
 
     loadPlayersData() {
-        try {
-            const saved = localStorage.getItem('hw_guild_players');
-            if (saved) {
-                const data = JSON.parse(saved);
-                this.state.players = data.players || [];
-            } else {
-                this.state.players = window.initialPlayers || [];
-                this.savePlayersData();
-            }
-            this.renderPlayersTable();
-            UserRepository.getAllProfiles()// todo: обработать получение профилей
-                .then(profiles => {
-                    console.log(`Профили: ${profiles}`)
-                })
-                .catch(e => {
-                    console.error(`Профили не получены: ${e.message}`)
-                })
-        } catch (error) {
-            console.error('Ошибка загрузки данных:', error);
-            NotificationUtils.showNotification('Ошибка загрузки данных', NotificationUtils.ERROR);
-        }
+        // На каждую загрузку страницы по новой таблицу игроков получаем
+        // Потому что могла измениться его роль или статус авторизации
+        // На успешную авторизацию происходит перезагрузка страницы, поэтому кейс когда запросили для анонима, а он внезапно им быть перестал не произойдёт.
+        // Это же касается и протухшего токена. Запрос покрыт авторизацией, поэтому ежели он с истёкшем токеном, то обновление => повтор запроса произойдут автоматически, иначе всему итак хана.
+        localStorage.removeItem('hw_guild_players')
+        this.state.isPlayersFetching = true
+        this.state.playersController = new AbortController()
+        UserRepository.getAllProfiles(this.state.playersController)
+            .then(profiles => {
+                this.state.players = profiles
+            })
+            .catch(e => {
+                console.error('Ошибка загрузки данных:', e);
+                NotificationUtils.showNotification('Ошибка загрузки данных', NotificationUtils.ERROR);
+            })
+            .finally(() => {
+                this.state.isPlayersFetching = false
+                this.renderPlayersTable()
+            })
+        this.renderPlayersTable()
     }
 
     // ===== LIGHTBOX =====
@@ -471,6 +482,16 @@ class App {
      */
     getFeatureToggles() {
         return featureToggles
+    }
+
+    /**
+     * Вызвается в случае успешной аутентификации пользователя
+     */
+    onLogin() {
+        if (this.state.isPlayersFetching) {
+            this.state.playersController?.abort()
+        }
+        this.loadPlayersData()
     }
 }
 

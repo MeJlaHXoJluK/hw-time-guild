@@ -221,15 +221,17 @@ export class UserApi {
 
     /**
      * @param token accessToken для авторизованного получения данных.
+     * @param controller AbortController для принудительной отмены запроса
      * @returns список всех профилей.
      */
-    static async fetchAllProfiles(token) {
+    static async fetchAllProfiles(token, controller) {
         return fetch(`${BASE_URL}/v1/getAllProfiiles`, {
             method: 'POST',
             headers: {
                 "Authorization": getBearerToken(token),
                 "Content-Type": "application/json",
-            }
+            },
+            signal: controller.signal
         })
     }
 

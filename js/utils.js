@@ -116,18 +116,46 @@ class _LoaderUtils {
 
     #name = 'loader'
 
+    #nonBlockingContainer = 'nonBlockingLoaderContainer'
+    #nonBlockingLoaderWrap = 'nonBlockingLoaderWrap'
+    #nonBlockingLoader = 'nonBlockingLoader'
+
     constructor() {}
 
     show() {
         this.getLoader().style.display = 'flex'
     }
 
+    showNonBlockingLoader(element) {
+        const container = document.createElement('div')
+        const containerWrap = document.createElement('div')
+        const loader = document.createElement('div')
+
+        container.className = this.#nonBlockingContainer
+        containerWrap.className = this.#nonBlockingLoaderWrap
+        loader.className = this.#nonBlockingLoader
+
+        containerWrap.appendChild(loader)
+        container.appendChild(containerWrap)
+        element.appendChild(container)
+    }
+
     hide() {
         this.getLoader().style.display = 'none'
     }
 
+    hideNonBlockingLoader(element) {
+        const loaderContainer = this.getNonBlockingLoader(element)
+        if (!loaderContainer) return
+        element.removeChild(loaderContainer)
+    }
+
     getLoader() {
         return document.getElementById(this.#name)
+    }
+
+    getNonBlockingLoader(element) {
+        return element.querySelector(`.${this.#nonBlockingContainer}`)
     }
 }
 

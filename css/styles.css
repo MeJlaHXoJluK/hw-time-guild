@@ -558,6 +558,32 @@ h3 {
     animation: spin 1s linear infinite;
 }
 
+/* ===== NON BLOCKING LOADER ===== */
+.nonBlockingLoaderContainer {
+    position: relative;
+}
+
+.nonBlockingLoaderWrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.02), rgba(0,0,0,0.04));
+    backdrop-filter: blur(2px);
+    border-radius: var(--radius);
+}
+
+.nonBlockingLoader {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--secondary), var(--accent), var(--secondary));
+    mask: radial-gradient(circle, transparent 60%, black 62%);
+    animation: spin 0.9s linear infinite;
+    box-shadow: 0 0 12px rgba(0,0,0,0.1);
+}
+
 /* ===== ANIMATIONS ===== */
 @keyframes slideUp {
     from {
@@ -616,7 +642,11 @@ h3 {
     }
 }
 
-/* Добавьте в конец файла styles.css */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 
 .paths-container {
     margin-top: 12px;

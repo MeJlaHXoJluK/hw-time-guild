@@ -183,14 +183,14 @@ function updateUI(viewHolder, user) {
 /**
  * Точка входа. Срабатывает на каждую перезагрузку страницы и либо получает профиль, либо устанавливает состояние разлогина.
  */
-export function initAuth() {
+export function initAuth(onLogin) {
     console.log("Begin auth ...")
 
     const viewHolder = new ProfileViewHolder()
 
     TokenHelper.setOnLogoutListener(() => updateUI(viewHolder, new UnknownUser()))
 
-    runAuthentication(viewHolder)
+    runAuthentication(viewHolder, onLogin)
         .then(() => console.log("Auth end success"))
         .catch(e => console.error(`Auth end with error: ${e}`))
 }
@@ -496,7 +496,7 @@ function showProfileDeletedNotificationIfNeed() {
  * Сценарий аутентификации.
  * @param viewHolder сущность для управления UI частью профиля.
  */
-async function runAuthentication(viewHolder) {
+async function runAuthentication(viewHolder, onLogin) {
     try {
         viewHolder.setLoading(true) // со старта сценария аутентификации показать скелетоны на профиле
         const code = UserRepository.getCodeFromLocalStorage()
@@ -515,6 +515,7 @@ async function runAuthentication(viewHolder) {
             if (isShowAuthSuccessNotification) {
                 NotificationUtils.showNotification('Вход выполнен успешно', NotificationUtils.SUCCESS)
             }
+            onLogin()
         }
 
         let profile = null
