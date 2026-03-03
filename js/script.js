@@ -1,5 +1,6 @@
 import { featureToggles } from './feature_toggles.js';
 import { NotificationUtils } from './utils.js'
+import { initAuth } from './auth.js'
 
 class App {
     constructor() {
@@ -19,6 +20,7 @@ class App {
         this.initLightbox();
         this.initModal();
         this.initNotifications();
+        initAuth()
         this.loadPlayersData();
         featureToggles.forEach(toggle => toggle.invoke());
     }
