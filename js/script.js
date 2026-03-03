@@ -143,9 +143,11 @@ class App {
         const form = document.getElementById('playerForm');
         form.addEventListener('submit', (e) => {
             e.preventDefault();
+            LoaderUtils.show()
+
             const nick = document.getElementById('nick').value.trim();
             const maxLevel = document.getElementById('maxLevel').value.trim() || '?';
-            const withGreat = document.getElementById('withGreat').value;
+            const withGreat = this.#convertFormWithGreatToUserValue(document.getElementById('withGreat').value);
             const role = document.getElementById('role').value.trim() || 'Участник';
             const status = document.getElementById('status').value.trim() || 'Активен';
             const timezone = document.getElementById('timezone').value.trim() || '';
@@ -173,13 +175,42 @@ class App {
                 this.state.players.push(player);
                 NotificationUtils.showNotification('Игрок добавлен', NotificationUtils.SUCCESS);
             } else {
-                this.state.players[this.state.currentEditIndex] = player;
-                NotificationUtils.showNotification('Данные игрока обновлены', NotificationUtils.SUCCESS);
+                const currentPlayer = this.state.players[this.state.currentEditIndex]
+                const updatedPlayer = {
+                    ...currentPlayer,
+                    name: nick,
+                    adventure_lvl: maxLevel,
+                    hw_goodwin_status: withGreat,
+                    role: role,
+                    status: status,
+                    timezone: timezone,
+                    activity: activeHours,
+                    class: classField,
+                    tg_name: telegram,
+                    comment: comment,
+                }
+
+                UserRepository.updateProfile(updatedPlayer)
+                    .then(isSuccess => {
+                        if (isSuccess) {
+                            this.state.players[this.state.currentEditIndex] = currentPlayer
+                            this.savePlayersData();
+                            NotificationUtils.showNotification('Данные игрока обновлены', NotificationUtils.SUCCESS);
+                        } else {
+                            NotificationUtils.showNotification('Не удалось обновить данные игрока', NotificationUtils.ERROR);
+                        }
+                    })
+                    .catch(e => {
+                        console.error(e)
+                        NotificationUtils.showNotification(`Ошибка, игрок не обновлён`, NotificationUtils.ERROR)
+                    })
+                    .finally(() => {
+                        this.renderPlayersTable();
+                        document.getElementById('playerModal').style.display = 'none';
+                        form.reset();
+                        LoaderUtils.hide()
+                    })
             }
-            this.savePlayersData();
-            this.renderPlayersTable();
-            document.getElementById('playerModal').style.display = 'none';
-            form.reset();
         });
     }
 
@@ -502,6 +533,18 @@ class App {
             return false
         }
         return null
+    }
+
+    #convertFormWithGreatToUserValue(formValue) {
+        switch (formValue) {
+            case '+': {
+                return 'YES'
+            }
+            case '-':
+                return 'NO'
+            default:
+                return 'UNKNOWN'
+        }
     }
 }
 

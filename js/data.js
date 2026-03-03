@@ -175,6 +175,30 @@ export class UserRepository {
     }
 
     /**
+     * @param profile измененный пользователем профиль из списка всех профилей.
+     * @returns true если профиль изменён, иначе false.
+     * @throws Error в случае не предвиденной ошибки.
+     */
+    static async updateProfile(profile) {
+        try {
+            const response = await authorizedFetch(async token => {
+                return await UserApi.updateProfile(token, profile)
+            })
+            if (response.status !== 200) {
+                throw new Error(`Что-то не так на сервере после отправки профиля ${profile}`)
+            }
+            const body = await response.json()
+            if (!body) {
+                throw new Error(`Некорректный ответ: ${body}`)
+            }
+            return body.isSuccess
+        } catch (e) {
+            console.error(e)
+            throw e
+        }
+    }
+
+    /**
      * @param code код для обмена на токены. Бекенд присылает при авторизации через телеграм с redirect-ом.
      * @returns true если пользователь новый, иначе false.
      * @throws CodeExchangeError в случае ошибки бека | Error при записи токенов.

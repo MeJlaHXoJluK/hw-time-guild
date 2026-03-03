@@ -271,6 +271,25 @@ export class UserApi {
             body: formData
         })
     }
+
+    /**
+     * @param token accessToken для авторизации запроса
+     * @param profile обновлённый профиль пользователя
+     */
+    static async updateProfile(token, profile) {
+        return fetch(`${BASE_URL}/v1/updateProfile`, {
+            method: 'POST',
+            headers: {
+                "Authorization": getBearerToken(token),
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(
+          {
+                    profile: profile
+                }
+            )
+        })
+    }
 }
 
 /**
