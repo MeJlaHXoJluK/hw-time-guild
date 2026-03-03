@@ -245,3 +245,12 @@ class _DivButtonUtils {
 }
 
 export const DivButtonUtils = new _DivButtonUtils()
+
+/**
+ * =================================================================
+ * =================== Раздел utils-ов со страницей ================
+ * =================================================================
+ */
+export function refreshPage() {
+    window.location.assign(window.location.href)
+}

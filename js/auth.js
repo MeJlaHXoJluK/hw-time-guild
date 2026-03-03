@@ -1,146 +1,16 @@
-import { NotificationUtils, LoaderUtils, ModalUtils, DivButtonUtils, StringUtils, ThemeUtils } from './utils.js'
+import { NotificationUtils, LoaderUtils, ModalUtils, DivButtonUtils, StringUtils, ThemeUtils, refreshPage } from './utils.js'
+import { TokenHelper, BASE_URL } from "./api.js";
+import {
+    UserRepository,
+    UnknownUser,
+    User,
+    LogoutError,
+    CodeExchangeError,
+    ProfileUnavailable
+} from './data.js'
 
 const authState = {
     user: null
-}
-
-const BASE_URL = 'https://afflpqpdllwiwsrtnuer.supabase.co/functions'
-
-class BaseUser {
-
-    constructor() {
-    }
-}
-
-class UnknownUser extends BaseUser {
-
-    constructor() {
-        super();
-    }
-}
-
-class User extends BaseUser {
-    imgUrl = null
-    name = null
-
-    constructor(imgUrl = null, name = null) {
-        super();
-        this.imgUrl = imgUrl
-        this.name = name
-    }
-}
-
-class UnauthorizedError extends Error {
-    constructor(message) {
-        super(message);
-        this.name = 'UnauthorizedError'
-    }
-}
-
-class CodeExchangeError extends Error {
-    constructor() {
-        super('Ошибка обмена кода');
-    }
-}
-
-class LogoutError extends Error {
-    constructor() {
-        super('Сценарий аутентификации не может быть продолжен');
-    }
-}
-
-class TokenHelper {
-
-    constructor() {
-        this.accessKey = 'access_token_key'
-        this.refreshKey = 'refresh_token_key'
-        this.codeKey = 'code_key'
-        this.codeErrorKey = 'code_error_key'
-        this._onLogoutListener = null
-    }
-
-    /**
-     * @returns null, если строки нет или она пуста, иначе значение access-токена.
-     */
-    getAccessToken() {
-        return StringUtils.getStringOrNull(localStorage.getItem(this.accessKey))
-    }
-
-    /**
-     * @returns null, если строки нет или она пуста, иначе значение refresh-токена.
-     */
-    getRefreshToken() {
-        return StringUtils.getStringOrNull(localStorage.getItem(this.refreshKey))
-    }
-
-    /**
-     * @returns code полученный в процессе аутентификации по telegram в случае успеха, в остальных случаях null.
-     */
-    getCode() {
-        return StringUtils.getStringOrNull(localStorage.getItem(this.codeKey))
-    }
-
-    /**
-     * @returns error сообщение полученное в процессе аутентификации по telegram в случае неудачи, в остальных случаях null.
-     */
-    getCodeError() {
-        return StringUtils.getStringOrNull(localStorage.getItem(this.codeErrorKey))
-    }
-
-    /**
-     * @param token accessToken для авторизации запросов.
-     * @throws Error если token null или пуст
-     */
-    setAccessToken(token) {
-        this.#performSetToken(this.accessKey, token, 'Can`t set null or empty access token')
-    }
-
-    /**
-     * @param token refreshToken для обновления токенов на беке.
-     * @throws Error если token null или пуст
-     */
-    setRefreshToken(token) {
-        this.#performSetToken(this.refreshKey, token, 'Can`t set null or empty refresh token')
-    }
-
-    /**
-     * @param listener срабатывает всякий раз, когда пользователь считается разлогиненным. (сам вышел, протухли токены, ..., etc.)
-     */
-    setOnLogoutListener(listener = null) {
-        this._onLogoutListener = listener
-    }
-
-    /**
-     * @returns true, если хотя бы какой-то токен существует в LocalStorage, иначе false.
-     */
-    hasTokens() {
-        return this.getAccessToken() != null && this.getRefreshToken() != null
-    }
-
-    onLogout(isRefreshPage = false) {
-        this.#removeTokens()
-        this._onLogoutListener?.()
-        if (isRefreshPage) {
-            refreshPage()
-        }
-    }
-
-    removeCode() {
-        localStorage.removeItem(this.codeKey)
-        localStorage.removeItem(this.codeErrorKey)
-    }
-
-    #removeTokens() {
-        localStorage.removeItem(this.accessKey)
-        localStorage.removeItem(this.refreshKey)
-    }
-
-    #performSetToken(key, token, errorMsg) {
-        if (StringUtils.isNullOrBlank(token)) {
-            throw new Error(errorMsg)
-        }
-        localStorage.setItem(key, token)
-    }
 }
 
 class ProfileViewHolder {
@@ -237,162 +107,6 @@ class ProfileViewHolder {
 }
 
 /**
- * Wrapper над запросом, аля AuthInterceptor, который при протухшем access токене пытается их обновить с помощью refresh токена. Затем запрос повторяется.
- * @param _fetch api-функция, возвращающая Promise<Response | Error>.
- * @returns Promise<Response> если токены не протухли и запрос завершился удачно, иначе Promise<Error>
- */
-async function authorizedFetch(_fetch = null) {
-    if (!_fetch) {
-        throw new Error('Request is Null!')
-    }
-    if (!authHelper.hasTokens()) {
-        throw new UnauthorizedError('Credentials not found')
-    }
-    let response = await _fetch(authHelper.getAccessToken())
-    if (response.status !== 401) {
-        return response
-    }
-    response = await fetchTokens(authHelper.getRefreshToken())
-    if (response.status !== 200) {
-        authHelper.onLogout()
-        throw new UnauthorizedError(`Can\`t fetch tokens! ${response}`)
-    }
-    try {
-        const {accessToken, refreshToken} = await response.json()
-        authHelper.setAccessToken(accessToken)
-        authHelper.setRefreshToken(refreshToken)
-    } catch (e) {
-        authHelper.onLogout()
-        throw new UnauthorizedError('Something when`t wrong on local token update')
-    }
-    response = await _fetch(authHelper.getAccessToken())
-    if (response.status !== 200) {
-        throw new Error(`Fetch failed! ${response}`)
-    }
-    return response
-}
-
-/**
- * Запрос на обновление протухшего аксес токена.
- * @param token refresh токен.
- * @returns Promise<Response>, где объект в теле содержит поля accessToken, refreshToken.
- */
-async function fetchTokens(token) {
-    return fetch(`${BASE_URL}/v1/authRefresh`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            token: token
-        })
-    })
-}
-
-/**
- * Получение профиля пользователя
- * @param token access токен
- * @returns Promise<Response> в теле которого объект с полями name и imgUrl.
- */
-async function fetchProfile(token = '') {
-    return fetch(`${BASE_URL}/v1/profile`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": getBearerToken(token)
-        },
-    })
-}
-
-/**
- * Удаление профиля пользователя с hw-guild-time сайта.
- * @param token access токен определяющий пользователя.
- * @returns Promise<Response> результат работы. Если status 200 - профиль удалён, иначе - ошибка.
- */
-async function deleteProfile(token = '') {
-    return fetch(`${BASE_URL}/v1/profileDelete`, {
-        method: 'POST',
-        headers: {
-            "Authorization": getBearerToken(token),
-            "Content-Type": "application/json"
-        }
-    })
-}
-
-/**
- * @param code код, который сайт получил редиректом от telegram при авторизации.
- * @returns Promise<Response> пара access и refresh токенов в случае успеха, иначе запрос с ошибкой.
- */
-async function fetchTokensByCode(code) {
-    return fetch(`${BASE_URL}/v1/codeExchange`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({code: code})
-    })
-}
-
-/**
- * @param token accessToken для авторизованного получения данных.
- * @returns Promise<Response> список профилей из которых можно выбрать профиль для сайта, иначе ошибка.
- */
-async function fetchUnusedProfiles(token) {
-    return fetch(`${BASE_URL}/v1/unusedProfiles`, {
-        method: 'POST',
-        headers: {
-            "Authorization": getBearerToken(token),
-            "Content-Type": "application/json",
-        }
-    })
-}
-
-/**
- * @param token accessToken для авторизации запроса
- * @param profileName имя профиля который регистрируется и будет связан с аккаунтом в ТГ.
- * @returns {Promise<Response>} Ответ с ушибкой в случае ошибки, иначе успешный ответ с кодом 200. Успешный ответ с кодом 200 может быть в 2-ч состояниях: пришёл профиль или профиль уже занят (такой кейс теоретически возможен если кто-то по ошибке раньше отправил запрос на создание профиля).
- * Поэтому успешный ответ с кодом 200 всегда содержит в теле isSuccess, который если false - значит аккаунт занял другой пользователь, в случае успешного создания профиля - true.
- * Покрывает только случай, когда 2 пользователя параллельно пытаются создать пользователя с одним именем.
- */
-async function createProfile(token, profileName) {
-    return fetch(`${BASE_URL}/v1/createProfile`, {
-        method: 'POST',
-        headers: {
-            "Authorization": getBearerToken(token),
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            name: profileName,
-        })
-    })
-}
-
-/**
- * @param token accessToken для авторизации запроса
- * @param avatar file картинка формата jpg/png для аватара
- * @return успешный ответ если аватарка для профиля установлена, иначе ошибка или status !== 200.
- */
-async function uploadAvatar(token, avatar) {
-    const formData = new FormData()
-    formData.append('file', avatar)
-    return fetch(`${BASE_URL}/v1/uploadProfileImage`, {
-        method: 'POST',
-        headers: {
-            "Authorization": getBearerToken(token),
-        },
-        body: formData
-    })
-}
-
-/**
- * @param token accessToken
- * @returns Bearer + пробел + accessToken
- */
-function getBearerToken(token) {
-    return `Bearer ${token}`
-}
-
-/**
  * Обновляет внешний вид плашки профиля и устанавливает логику в зависимости от статуса аутентификации.
  * @param viewHolder класс свящывающий view и данные
  * @param user данные профиля пользователя.
@@ -424,7 +138,7 @@ function updateUI(viewHolder, user) {
                 buildAvatar(),
                 ModalUtils.buildTitle(`Действия над профилем ${user.name}:`),
                 ModalUtils.buildButton('Выйти', 'button--primary', () => {
-                    authHelper.onLogout(true)
+                    TokenHelper.onLogout(true)
                     closeLogout()
                 }),
                 ModalUtils.buildButton('Удалить аккаунт', 'delete-btn', () => {
@@ -437,19 +151,13 @@ function updateUI(viewHolder, user) {
                         ModalUtils.buildTitle('Удалить аккаунт?'),
                         ModalUtils.buildButton('Да', 'delete-btn', () => {
                             LoaderUtils.show()
-                            authorizedFetch(deleteProfile)
-                                .then(response => {
-                                    if (response.status === 200) {
-                                        setProfileDeletedNotificationNeed(true)
-                                        authHelper.onLogout(true)
-                                    } else {
-                                        NotificationUtils.showNotification('Ошибка! Возможно проблема на сервере', NotificationUtils.ERROR)
-                                        console.log(response)
-                                    }
+                            UserRepository.deleteProfile()
+                                .then(() => {
+                                    setProfileDeletedNotificationNeed(true)
+                                    TokenHelper.onLogout(true)
                                 })
                                 .catch(e => {
-                                    NotificationUtils.showNotification('Ошибка во время удаления аккаунта', NotificationUtils.ERROR)
-                                    console.log(e)
+                                    NotificationUtils.showNotification(e.message, NotificationUtils.ERROR)
                                 })
                                 .finally(() => {
                                     closeConfirm()
@@ -472,8 +180,6 @@ function updateUI(viewHolder, user) {
     viewHolder.setProfileClickListener(clickListener)
 }
 
-export const authHelper = new TokenHelper()
-
 /**
  * Точка входа. Срабатывает на каждую перезагрузку страницы и либо получает профиль, либо устанавливает состояние разлогина.
  */
@@ -482,7 +188,7 @@ export function initAuth() {
 
     const viewHolder = new ProfileViewHolder()
 
-    authHelper.setOnLogoutListener(() => updateUI(viewHolder, new UnknownUser()))
+    TokenHelper.setOnLogoutListener(() => updateUI(viewHolder, new UnknownUser()))
 
     runAuthentication(viewHolder)
         .then(() => console.log("Auth end success"))
@@ -507,7 +213,16 @@ function buildTelegram() {
     return script
 }
 
-function buildUsersRow(users, onUserCheck) {
+/**
+ * @param onUserCheck колбек, принимающий выбранный name неиспользуемого профиля.
+ * @returns Виджет с подсказками неиспользуемых профилей, доступных к выбору при создании профиля. Если подсказок нет - null.
+ */
+async function buildUnusedProfilesRow(onUserCheck) {
+    const profiles = await UserRepository.getUnusedProfiles()
+    if (!profiles) {
+        return null
+    }
+
     const row = document.createElement('div')
 
     let isDown = false;
@@ -542,17 +257,17 @@ function buildUsersRow(users, onUserCheck) {
 
     row.className = 'profiles-row'
 
-    const chips = users.map(user => {
+    const chips = profiles.map(profile => {
         const profileChip = document.createElement('div')
         profileChip.className = 'profile-chip'
-        profileChip.textContent = user
+        profileChip.textContent = profile.name
         profileChip.addEventListener('click', () => {
             chips.forEach(chip => {
-                setActiveClass(chip, chip.textContent === user)
+                setActiveClass(chip, chip.textContent === profile.name)
             })
             row.prepend(profileChip)
             row.scrollTo({ left: 0, behavior: 'smooth' })
-            onUserCheck(user)
+            onUserCheck(profile.name)
         })
         return profileChip
     })
@@ -621,27 +336,17 @@ function buildUploadAvatarBtn() {
         const file = input.files[0]
         if (file) {
             LoaderUtils.show()
-            authorizedFetch(async token => {
-                return await uploadAvatar(token, file)
-            })
-                .then(response => {
-                    if (response.status === 200) {
-                        refreshPage()
-                    } else {
-                        NotificationUtils.showNotification('Что-то не так на сервере', NotificationUtils.ERROR)
-                    }
-                })
+            UserRepository.uploadAvatar(file)
+                .then(() => refreshPage())
                 .catch(e => {
                     console.error(e)
-                    NotificationUtils.showNotification('Ошибка загрузки аватара', NotificationUtils.ERROR)
+                    NotificationUtils.showNotification(e.message, NotificationUtils.ERROR)
                 })
-                .finally(() => {
-                    LoaderUtils.hide()
-                })
+                .finally(() => LoaderUtils.hide())
         }
     })
 
-    button.addEventListener('click', e => {
+    button.addEventListener('click', () => {
         input.click()
     })
 
@@ -657,7 +362,7 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
     // todo: какая-то дизайн-система простенькая нужна.
     const onModalClose = () => {
         if (!authState.user) {
-            authHelper.onLogout(true)
+            TokenHelper.onLogout(true)
         }
     }
     const modal = ModalUtils.buildModal(onModalClose)
@@ -665,12 +370,6 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
 
     try {
         LoaderUtils.show()
-        const profilesResponse = await authorizedFetch(fetchUnusedProfiles)
-        if (profilesResponse.status !== 200) {
-            onProfileFailed()
-            throw new Error((await profilesResponse.json()).message)
-        }
-        const users = (await profilesResponse.json()).profiles.map(profile => profile.name)
 
         let profileDraft = null
 
@@ -699,39 +398,23 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
             LoaderUtils.show()
             userInput?.blur()
             DivButtonUtils.setDisable(profileCreateBtn, true) // Чтобы единожды выполнилось
-            authorizedFetch( async token => {
-                return await createProfile(token, profileDraft)
-            })
-                .then(response => {
-                    if (response.status === 200) {
-                        response.json()
-                            .then(body => {
-                                if (body.isSuccess === true) {
-                                    LoaderUtils.hide()
-                                    document.removeEventListener('keypress', onDocumentEnterClick)
-                                    onProfileReceived(new User(body.imgUrl, body.name))
-                                    closeModal()
-                                } else {
-                                    LoaderUtils.hide()
-                                    NotificationUtils.showNotification('Профиль занят', NotificationUtils.ERROR)
-                                    setErrorClass(userInput)
-                                    DivButtonUtils.setDisable(profileCreateBtn, StringUtils.isNullOrBlank(profileDraft))
-                                }
-                            })
-                            .catch(e => {
-                                console.error(e)
-                                LoaderUtils.hide()
-                                onProfileCreateFailed()
-                            })
-                    } else {
-                        LoaderUtils.hide()
-                        onProfileCreateFailed()
-                    }
+            UserRepository.createProfile(profileDraft)
+                .then(user => {
+                    LoaderUtils.hide()
+                    document.removeEventListener('keypress', onDocumentEnterClick)
+                    onProfileReceived(user)
+                    closeModal()
                 })
                 .catch(e => {
                     console.error(e)
                     LoaderUtils.hide()
-                    onProfileCreateFailed()
+                    if (e instanceof ProfileUnavailable) {
+                        NotificationUtils.showNotification('Профиль занят', NotificationUtils.ERROR)
+                        setErrorClass(userInput)
+                        DivButtonUtils.setDisable(profileCreateBtn, StringUtils.isNullOrBlank(profileDraft))
+                    } else {
+                        onProfileCreateFailed()
+                    }
                 })
         }
 
@@ -745,7 +428,7 @@ async function showProfileCreate(onProfileReceived, onProfileFailed) {
         profileCreateBtn = ModalUtils.buildButton('Войти', 'button--primary', onProfileCreateClick)
         DivButtonUtils.setDisable(profileCreateBtn, true)
 
-        usersRow = buildUsersRow(users, name => {
+        usersRow = await buildUnusedProfilesRow(name => {
             onProfileDraftChange(name)
             if (userInput) {
                 userInput.value = name
@@ -810,67 +493,20 @@ function showProfileDeletedNotificationIfNeed() {
 }
 
 /**
- * @param code код для обмена на токены. Бекенд присылает при авторизации через телеграм с redirect-ом.
- * @returns true если пользователь новый, иначе false.
- * @throws CodeExchangeError в случае ошибки бека | Error при записи токенов.
- */
-async function processCodeExchange(code) {
-    try {
-        const response = await fetchTokensByCode(code)
-        const {accessToken, refreshToken, isNew} = await response.json()
-        authHelper.setAccessToken(accessToken)
-        authHelper.setRefreshToken(refreshToken)
-        return isNew
-    } catch (e) {
-        console.error(`on exchange code was error: ${e}`)
-        throw new CodeExchangeError()
-    }
-}
-
-/**
- * @return code из localStorage
- * @throws CodeExchangeError если вместо кода записана ошибка от бекенда в localStorage
- */
-function getCodeFromLocalStorage() {
-    const error = authHelper.getCodeError()
-    if (error) {
-        throw new CodeExchangeError()
-    }
-    return authHelper.getCode()
-}
-
-/**
- * @returns профиль пользователя.
- * @throws LogoutError при ошибке получения профиля.
- */
-async function getProfile() {
-    try {
-        const response = await authorizedFetch(fetchProfile)
-        return await response.json()
-    } catch (e) {
-        // Если вдруг запрос профиля или сеть икнул[а], то с одной стороны у нас в localStorage валидные токены, а с другой, пользователь на UI не понимает авторизован ли он
-        // Для простоты разлогиниваю его, чтобы ui и логика были консистентными.
-        // Альтернативно можно было бы конечно просто дефолтную иконку профиля рисовать, НО, по мере увеличения профиля всё сломается.
-        // Не откуда будет взять никнейм и т.д. Поэтому проще разлогинивать.
-        throw new LogoutError()
-    }
-}
-
-/**
  * Сценарий аутентификации.
  * @param viewHolder сущность для управления UI частью профиля.
  */
 async function runAuthentication(viewHolder) {
     try {
         viewHolder.setLoading(true) // со старта сценария аутентификации показать скелетоны на профиле
-        const code = getCodeFromLocalStorage()
+        const code = UserRepository.getCodeFromLocalStorage()
 
         let isShowAuthSuccessNotification = false
         let isNewUser = false
 
         if (code) {
             LoaderUtils.show()
-            isNewUser = await processCodeExchange(code)
+            isNewUser = await UserRepository.processCodeExchange(code)
             isShowAuthSuccessNotification = true
         }
 
@@ -883,7 +519,7 @@ async function runAuthentication(viewHolder) {
 
         let profile = null
         if (!isNewUser) {
-            profile = await getProfile()
+            profile = await UserRepository.getProfile()
             isNewUser = !profile.hasProfile
         }
 
@@ -895,7 +531,7 @@ async function runAuthentication(viewHolder) {
                     onProfileReceived(user)
                 },
                 () => {
-                authHelper.onLogout()
+                TokenHelper.onLogout()
                 viewHolder.setLoading(false)
             })
         } else {
@@ -907,13 +543,17 @@ async function runAuthentication(viewHolder) {
             NotificationUtils.showNotification('Ошибка при входе', NotificationUtils.ERROR)
         }
         if (e instanceof LogoutError) {
-            authHelper.onLogout()
+            // Если вдруг запрос профиля или сеть икнул[а], то с одной стороны у нас в localStorage валидные токены, а с другой, пользователь на UI не понимает авторизован ли он
+            // Для простоты разлогиниваю его, чтобы ui и логика были консистентными.
+            // Альтернативно можно было бы конечно просто дефолтную иконку профиля рисовать, НО, по мере увеличения профиля всё сломается.
+            // Не откуда будет взять никнейм и т.д. Поэтому проще разлогинивать.
+            TokenHelper.onLogout()
             throw e // нет смысла обновлять UI ниже, он на logout итак обновится
         }
         updateUI(viewHolder, new UnknownUser())
         throw e
     } finally {
-        authHelper.removeCode()
+        TokenHelper.removeCode()
         LoaderUtils.hide()
         viewHolder.setLoading(false)
         showProfileDeletedNotificationIfNeed()
@@ -948,8 +588,4 @@ function setErrorClass(element, isError = true) {
     } else {
         element.classList.remove(errorClass)
     }
-}
-
-function refreshPage() {
-    window.location.assign(window.location.href)
 }
