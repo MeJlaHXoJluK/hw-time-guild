@@ -1,6 +1,7 @@
 import { featureToggles } from './feature_toggles.js';
 import { NotificationUtils } from './utils.js'
 import { initAuth } from './auth.js'
+import { UserRepository } from './data.js'
 
 class App {
     constructor() {
@@ -344,6 +345,13 @@ class App {
                 this.savePlayersData();
             }
             this.renderPlayersTable();
+            UserRepository.getAllProfiles()// todo: обработать получение профилей
+                .then(profiles => {
+                    console.log(`Профили: ${profiles}`)
+                })
+                .catch(e => {
+                    console.error(`Профили не получены: ${e.message}`)
+                })
         } catch (error) {
             console.error('Ошибка загрузки данных:', error);
             NotificationUtils.showNotification('Ошибка загрузки данных', NotificationUtils.ERROR);

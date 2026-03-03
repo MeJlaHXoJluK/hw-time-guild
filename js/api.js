@@ -220,6 +220,20 @@ export class UserApi {
     }
 
     /**
+     * @param token accessToken для авторизованного получения данных.
+     * @returns список всех профилей.
+     */
+    static async fetchAllProfiles(token) {
+        return fetch(`${BASE_URL}/v1/getAllProfiiles`, {
+            method: 'POST',
+            headers: {
+                "Authorization": getBearerToken(token),
+                "Content-Type": "application/json",
+            }
+        })
+    }
+
+    /**
      * @param token accessToken для авторизации запроса
      * @param profileName имя профиля который регистрируется и будет связан с аккаунтом в ТГ.
      * @returns {Promise<Response>} Ответ с ушибкой в случае ошибки, иначе успешный ответ с кодом 200. Успешный ответ с кодом 200 может быть в 2-ч состояниях: пришёл профиль или профиль уже занят (такой кейс теоретически возможен если кто-то по ошибке раньше отправил запрос на создание профиля).

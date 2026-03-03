@@ -96,6 +96,26 @@ export class UserRepository {
     }
 
     /**
+     * @returns Список всех профилей для таблицы, иначе null.
+     */
+    static async getAllProfiles() {
+        try {
+            const response = await authorizedFetch(UserApi.fetchAllProfiles)
+            if (response.status !== 200) {
+                throw new Error(`Ошибка с сервера при получении всех профилей: ${response.status}`)
+            }
+            const body = await response.json()
+            if (!body.profiles || body.profiles.length === 0) {
+                throw new Error('Профилей не пришли или их нет')
+            }
+            return body.profiles
+        } catch (e) {
+            console.error(e)
+            return null
+        }
+    }
+
+    /**
      * @param profileDraft имя профиля.
      * @return User, если профиль создан успешно.
      * @throws Error | ProfileUnavailable
