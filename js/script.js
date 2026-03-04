@@ -193,7 +193,7 @@ class App {
                 UserRepository.updateProfile(updatedPlayer)
                     .then(isSuccess => {
                         if (isSuccess) {
-                            this.state.players[this.state.currentEditIndex] = currentPlayer
+                            this.state.players[this.state.currentEditIndex] = updatedPlayer
                             this.savePlayersData();
                             NotificationUtils.showNotification('Данные игрока обновлены', NotificationUtils.SUCCESS);
                         } else {
