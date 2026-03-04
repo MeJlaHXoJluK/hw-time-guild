@@ -220,7 +220,7 @@ export class UserApi {
     }
 
     /**
-     * @param token accessToken для авторизованного получения данных.
+     * @param token accessToken для авторизованного получения данных или null, если пользователь ещё не авторизован.
      * @param controller AbortController для принудительной отмены запроса
      * @returns список всех профилей.
      */
@@ -228,7 +228,7 @@ export class UserApi {
         return fetch(`${BASE_URL}/v1/getAllProfiiles`, {
             method: 'POST',
             headers: {
-                "Authorization": getBearerToken(token),
+                "Authorization": token ? getBearerToken(token) : null,
                 "Content-Type": "application/json",
             },
             signal: controller.signal

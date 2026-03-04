@@ -100,9 +100,15 @@ export class UserRepository {
      */
     static async getAllProfiles(controller) {
         try {
-            const response = await authorizedFetch(async token => {
-                return await UserApi.fetchAllProfiles(token, controller)
-            })
+            let response
+            if (TokenHelper.hasTokens()) {
+                response = await authorizedFetch(async token => {
+                    return await UserApi.fetchAllProfiles(token, controller)
+                })
+            } else {
+                response = await UserApi.fetchAllProfiles(null, controller)
+            }
+
             if (response.status !== 200) {
                 throw new Error(`Ошибка с сервера при получении всех профилей: ${response.status}`)
             }
