@@ -1,4 +1,3 @@
-import { initAuth } from './auth.js'
 
 /**
  * =============================================================
@@ -40,36 +39,8 @@ class FeatureToggle {
 
 /**
  * =============================================================
- * ============== Имплементации (конкретные фича тоглы) ========
- * =============================================================
- */
-
-/**
- * Включает функционал по работе с профилем на сайте.
- */
-class AuthToggle extends FeatureToggle {
-
-    constructor(key) {
-        super();
-        this._key = key;
-    }
-
-    invoke() {
-        const profileHeaderItem = document.getElementById('profile')
-        const isEnabled =  this.isEnabled()
-        profileHeaderItem.style.display = isEnabled ? 'inline' : 'none'
-        if (isEnabled) {
-            initAuth()
-        }
-    }
-}
-
-/**
- * =============================================================
  * ================== Секция экспорта из модуля ================
  * =============================================================
  */
 
-export const featureToggles = [
-    new AuthToggle('AUTH_FEATURE'),
-];
+export const featureToggles = [];

@@ -116,18 +116,49 @@ class _LoaderUtils {
 
     #name = 'loader'
 
+    #nonBlockingContainer = 'nonBlockingLoaderContainer'
+    #nonBlockingLoaderWrap = 'nonBlockingLoaderWrap'
+    #nonBlockingLoader = 'nonBlockingLoader'
+
     constructor() {}
 
     show() {
         this.getLoader().style.display = 'flex'
     }
 
+    showNonBlockingLoader(element) {
+        if (this.getNonBlockingLoader(element)) {
+            return
+        }
+        const container = document.createElement('div')
+        const containerWrap = document.createElement('div')
+        const loader = document.createElement('div')
+
+        container.className = this.#nonBlockingContainer
+        containerWrap.className = this.#nonBlockingLoaderWrap
+        loader.className = this.#nonBlockingLoader
+
+        containerWrap.appendChild(loader)
+        container.appendChild(containerWrap)
+        element.appendChild(container)
+    }
+
     hide() {
         this.getLoader().style.display = 'none'
     }
 
+    hideNonBlockingLoader(element) {
+        const loaderContainer = this.getNonBlockingLoader(element)
+        if (!loaderContainer) return
+        element.removeChild(loaderContainer)
+    }
+
     getLoader() {
         return document.getElementById(this.#name)
+    }
+
+    getNonBlockingLoader(element) {
+        return element.querySelector(`.${this.#nonBlockingContainer}`)
     }
 }
 
@@ -135,7 +166,7 @@ export const LoaderUtils = new _LoaderUtils()
 
 /**
  * =================================================================
- * ==================== Раздел ьодального окна =====================
+ * ==================== Раздел модального окна =====================
  * =================================================================
  */
 class _ModalUtils {
@@ -150,7 +181,7 @@ class _ModalUtils {
         this.#getContent(modal).append(...elements)
     }
 
-    buildModal() {
+    buildModal(onModalClose = (() => {})) {
         const modal = document.createElement('div')
         const modalContent = document.createElement('div')
         modal.className = this.#container
@@ -164,13 +195,13 @@ class _ModalUtils {
 
         modal.addEventListener(this.#onClick, (e) => {
             if (e.target === modal) {
-                this.close(modal)
+                this.close(modal, onModalClose)
             }
         });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && modal.style.display === 'flex') {
-                this.close(modal)
+                this.close(modal, onModalClose)
             }
         });
 
@@ -207,8 +238,11 @@ class _ModalUtils {
         document.body.appendChild(modal)
     }
 
-    close(modal) {
-        document.body.removeChild(modal)
+    close(modal, onModalClose = (() => {})) {
+        if (document.body.contains(modal)) {
+            document.body.removeChild(modal)
+            onModalClose()
+        }
     }
 
     #getContent(modal) {
@@ -217,3 +251,37 @@ class _ModalUtils {
 }
 
 export const ModalUtils = new _ModalUtils()
+
+/**
+ * =================================================================
+ * ============ Раздел кнопок (div элементами сделанные) ===========
+ * =================================================================
+ */
+class _DivButtonUtils {
+    #disabledClass = 'disabled'
+
+    constructor() {}
+
+    isDisabled(element) {
+        return element.classList.contains(this.#disabledClass)
+    }
+
+    setDisable(element, isDisable = true) {
+        if (isDisable && !this.isDisabled(element)) {
+            element.classList.add(this.#disabledClass)
+        } else {
+            element.classList.remove(this.#disabledClass)
+        }
+    }
+}
+
+export const DivButtonUtils = new _DivButtonUtils()
+
+/**
+ * =================================================================
+ * =================== Раздел utils-ов со страницей ================
+ * =================================================================
+ */
+export function refreshPage() {
+    window.location.assign(window.location.href)
+}

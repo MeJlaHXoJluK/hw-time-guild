@@ -1,11 +1,15 @@
 import { featureToggles } from './feature_toggles.js';
-import { NotificationUtils } from './utils.js'
+import { LoaderUtils, NotificationUtils, refreshPage } from './utils.js'
+import { initAuth } from './auth.js'
+import { UserRepository } from './data.js'
 
 class App {
     constructor() {
         this.state = {
             activeTab: 'schemes',
             isEditMode: false,
+            isPlayersFetching: false,
+            playersController: null,
             players: [],
             sortBy: {field: null, direction: 'asc'},
             currentEditIndex: -1
@@ -19,6 +23,7 @@ class App {
         this.initLightbox();
         this.initModal();
         this.initNotifications();
+        initAuth(() => this.onLogin())
         this.loadPlayersData();
         featureToggles.forEach(toggle => toggle.invoke());
     }
@@ -48,7 +53,7 @@ class App {
     initPlayersTable() {
         this.initSorting();
         this.initEditMode();
-        this.initAddPlayer();
+        // this.initAddPlayer(); todo: Выглядит так, что не нужно пока. Если пользак авторизовался впервые, то под него будет заведена строка, иначе у него итак строка есть.
         this.initFormSubmit();
     }
 
@@ -102,7 +107,7 @@ class App {
             if (this.state.isEditMode) {
                 editBtn.textContent = '❌ Выйти из режима редактирования';
                 editBtn.classList.remove('button--secondary');
-                addBtn.style.display = 'inline-flex';
+                // addBtn.style.display = 'inline-flex';
                 actionsColumn.style.display = 'table-cell';
                 document.querySelectorAll('.actions-column').forEach(cell => {
                     cell.style.display = 'table-cell';
@@ -119,30 +124,32 @@ class App {
         });
     }
 
-    initAddPlayer() {
-        const addBtn = document.getElementById('addPlayerBtn');
-        const modal = document.getElementById('playerModal');
-        const cancelBtn = document.getElementById('cancelBtn');
-        addBtn.addEventListener('click', () => {
-            this.state.currentEditIndex = -1;
-            document.getElementById('modalTitle').textContent = 'Добавить игрока';
-            document.getElementById('playerForm').reset();
-            modal.style.display = 'flex';
-        });
-        cancelBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
-    }
+    // initAddPlayer() {
+    //     const addBtn = document.getElementById('addPlayerBtn');
+    //     const modal = document.getElementById('playerModal');
+    //     const cancelBtn = document.getElementById('cancelBtn');
+    //     addBtn.addEventListener('click', () => {
+    //         this.state.currentEditIndex = -1;
+    //         document.getElementById('modalTitle').textContent = 'Добавить игрока';
+    //         document.getElementById('playerForm').reset();
+    //         modal.style.display = 'flex';
+    //     });
+    //     cancelBtn.addEventListener('click', () => {
+    //         modal.style.display = 'none';
+    //     });
+    // }
 
     initFormSubmit() {
         const form = document.getElementById('playerForm');
         form.addEventListener('submit', (e) => {
             e.preventDefault();
+            LoaderUtils.show()
+
             const nick = document.getElementById('nick').value.trim();
             const maxLevel = document.getElementById('maxLevel').value.trim() || '?';
-            const withGreat = document.getElementById('withGreat').value;
+            const withGreat = this.#convertFormWithGreatToUserValue(document.getElementById('withGreat').value);
             const role = document.getElementById('role').value.trim() || 'Участник';
-            const status = document.getElementById('status').value.trim() || 'Активен';
+            const status = this.#convertToStatus(document.getElementById('status').value.trim()) || 'Активен';
             const timezone = document.getElementById('timezone').value.trim() || '';
             const activeHours = document.getElementById('activeHours').value.trim() || '';
             const classField = document.getElementById('class').value.trim() || '';
@@ -168,13 +175,42 @@ class App {
                 this.state.players.push(player);
                 NotificationUtils.showNotification('Игрок добавлен', NotificationUtils.SUCCESS);
             } else {
-                this.state.players[this.state.currentEditIndex] = player;
-                NotificationUtils.showNotification('Данные игрока обновлены', NotificationUtils.SUCCESS);
+                const currentPlayer = this.state.players[this.state.currentEditIndex]
+                const updatedPlayer = {
+                    ...currentPlayer,
+                    name: nick,
+                    adventure_lvl: maxLevel,
+                    hw_goodwin_status: withGreat,
+                    role: role,
+                    status: status,
+                    timezone: timezone,
+                    activity: activeHours,
+                    class: classField,
+                    tg_name: telegram,
+                    comment: comment,
+                }
+
+                UserRepository.updateProfile(updatedPlayer)
+                    .then(isSuccess => {
+                        if (isSuccess) {
+                            this.state.players[this.state.currentEditIndex] = updatedPlayer
+                            this.savePlayersData();
+                            NotificationUtils.showNotification('Данные игрока обновлены', NotificationUtils.SUCCESS);
+                        } else {
+                            NotificationUtils.showNotification('Не удалось обновить данные игрока', NotificationUtils.ERROR);
+                        }
+                    })
+                    .catch(e => {
+                        console.error(e)
+                        NotificationUtils.showNotification(`Ошибка, игрок не обновлён`, NotificationUtils.ERROR)
+                    })
+                    .finally(() => {
+                        this.renderPlayersTable();
+                        document.getElementById('playerModal').style.display = 'none';
+                        form.reset();
+                        LoaderUtils.hide()
+                    })
             }
-            this.savePlayersData();
-            this.renderPlayersTable();
-            document.getElementById('playerModal').style.display = 'none';
-            form.reset();
         });
     }
 
@@ -182,25 +218,37 @@ class App {
         this.state.currentEditIndex = index;
         const player = this.state.players[index];
         document.getElementById('modalTitle').textContent = 'Редактировать игрока';
-        document.getElementById('nick').value = player.nick || '';
-        document.getElementById('maxLevel').value = player.maxLevel || '?';
-        document.getElementById('withGreat').value = player.withGreat || '?';
+        document.getElementById('nick').value = player.name || '';
+        document.getElementById('maxLevel').value = player.adventure_lvl || '?';
+        document.getElementById('withGreat').value = this.#convertFromWithGreat(player) || '?';
         document.getElementById('role').value = player.role || 'Участник';
-        document.getElementById('status').value = player.status || 'Активен';
+        document.getElementById('status').value = this.#convertFromStatus(player) || 'Активен';
         document.getElementById('timezone').value = player.timezone || '';
-        document.getElementById('activeHours').value = player.activeHours || '';
+        document.getElementById('activeHours').value = player.activity || '';
         document.getElementById('class').value = player.class || '';
-        document.getElementById('telegram').value = player.telegram || '';
+        document.getElementById('telegram').value = player.tg_name || '';
         document.getElementById('comment').value = player.comment || '';
         document.getElementById('playerModal').style.display = 'flex';
     }
 
-    deletePlayer(index) {
+    deletePlayer(index, id) {
         if (confirm('Удалить этого игрока?')) {
-            this.state.players.splice(index, 1);
-            this.savePlayersData();
-            this.renderPlayersTable();
-            NotificationUtils.showNotification('Игрок удален', NotificationUtils.SUCCESS);
+            LoaderUtils.show()
+            UserRepository.deleteProfileById(id)
+                .then(() => {
+                    this.state.players.splice(index, 1);
+                    this.savePlayersData();
+                    NotificationUtils.showNotification('Игрок удален', NotificationUtils.SUCCESS);
+                    refreshPage() // Если удалил свой профиль, значит входить надо
+                })
+                .catch(e => {
+                    console.error(e.message)
+                    NotificationUtils.showNotification('Игрок не удален', NotificationUtils.ERROR);
+                })
+                .finally(() => {
+                    this.renderPlayersTable();
+                    LoaderUtils.hide()
+                })
         }
     }
 
@@ -214,16 +262,19 @@ class App {
     getStatusClass(status) {
         if (!status) return 'status-unknown';
         const statusLower = status.toLowerCase();
-        if (statusLower.includes('актив')) return 'status-active';
-        if (statusLower.includes('отпуск')) return 'status-vacation';
-        if (statusLower.includes('неактив')) return 'status-inactive';
-        if (statusLower.includes('недоступ')) return 'status-inactive';
+        if (statusLower.startsWith('актив')) return 'status-active';
+        if (statusLower.startsWith('отпуск')) return 'status-vacation';
+        if (statusLower.startsWith('неактив')) return 'status-inactive';
+        if (statusLower.startsWith('недоступ')) return 'status-inactive';
         return 'status-unknown';
     }
 
     renderPlayersTable() {
         const tbody = document.getElementById('playersTableBody');
         tbody.innerHTML = '';
+        if (!this.state.players) {
+            return
+        }
         this.state.players.forEach((player, index) => {
             const row = document.createElement('tr');
             // Номер
@@ -233,18 +284,19 @@ class App {
             row.appendChild(tdNumber);
             // Ник
             const tdNick = document.createElement('td');
-            tdNick.textContent = player.nick || '-';
+            tdNick.textContent = player.name || '-';
             row.appendChild(tdNick);
             // Макс. уровень
             const tdLevel = document.createElement('td');
-            tdLevel.textContent = player.maxLevel || '?';
-            tdLevel.className = this.getLevelClass(player.maxLevel);
+            tdLevel.textContent = player.adventure_lvl || '?';
+            tdLevel.className = this.getLevelClass(player.adventure_lvl);
             row.appendChild(tdLevel);
             // С Великим
             const tdGreat = document.createElement('td');
             let greatText = '❓';
-            if (player.withGreat === '+') greatText = '✅';
-            if (player.withGreat === '-') greatText = '❌';
+            const withGreat = this.#convertFromWithGreat(player)
+            if (withGreat === '+') greatText = '✅';
+            if (withGreat === '-') greatText = '❌';
             tdGreat.textContent = greatText;
             row.appendChild(tdGreat);
             // Роль
@@ -253,7 +305,7 @@ class App {
             row.appendChild(tdRole);
             // Статус
             const tdStatus = document.createElement('td');
-            const statusValue = player.status || 'Активен';
+            const statusValue = this.#convertFromStatus(player) || 'Активен';
             tdStatus.textContent = statusValue;
             tdStatus.className = this.getStatusClass(statusValue);
             row.appendChild(tdStatus);
@@ -263,7 +315,7 @@ class App {
             row.appendChild(tdTimezone);
             // Время активности
             const tdActiveHours = document.createElement('td');
-            tdActiveHours.textContent = player.activeHours || '-';
+            tdActiveHours.textContent = player.activity || '-';
             row.appendChild(tdActiveHours);
             // Класс
             const tdClass = document.createElement('td');
@@ -271,12 +323,12 @@ class App {
             row.appendChild(tdClass);
             // Telegram
             const tdTelegram = document.createElement('td');
-            if (player.telegram) {
+            if (player.tg_name) {
                 const telegramLink = document.createElement('a');
-                telegramLink.href = player.telegram.startsWith('http') ? player.telegram : `https://t.me/${player.telegram.replace('@', '')}`;
+                telegramLink.href = player.tg_name.startsWith('http') ? player.tg_name : `https://t.me/${player.tg_name.replace('@', '')}`;
                 telegramLink.target = '_blank';
                 telegramLink.rel = 'noopener noreferrer';
-                telegramLink.textContent = player.telegram;
+                telegramLink.textContent = player.tg_name;
                 telegramLink.className = 'telegram-link';
                 tdTelegram.appendChild(telegramLink);
             } else {
@@ -290,6 +342,10 @@ class App {
             tdComment.title = commentText;
             tdComment.className = 'table-comment';
             row.appendChild(tdComment);
+            if (!player.isEditable) {
+                tbody.appendChild(row);
+                return // действия не поддерживаются для пользователя
+            }
             // Действия
             const tdActions = document.createElement('td');
             tdActions.className = 'actions-column';
@@ -308,7 +364,7 @@ class App {
             deleteBtn.title = 'Удалить';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.deletePlayer(index);
+                this.deletePlayer(index, player.id);
             });
             tdActions.appendChild(editBtn);
             tdActions.appendChild(deleteBtn);
@@ -332,20 +388,28 @@ class App {
     }
 
     loadPlayersData() {
-        try {
-            const saved = localStorage.getItem('hw_guild_players');
-            if (saved) {
-                const data = JSON.parse(saved);
-                this.state.players = data.players || [];
-            } else {
-                this.state.players = window.initialPlayers || [];
-                this.savePlayersData();
-            }
-            this.renderPlayersTable();
-        } catch (error) {
-            console.error('Ошибка загрузки данных:', error);
-            NotificationUtils.showNotification('Ошибка загрузки данных', NotificationUtils.ERROR);
-        }
+        // На каждую загрузку страницы по новой таблицу игроков получаем
+        // Потому что могла измениться его роль или статус авторизации
+        // На успешную авторизацию происходит перезагрузка страницы, поэтому кейс когда запросили для анонима, а он внезапно им быть перестал не произойдёт.
+        // Это же касается и протухшего токена. Запрос покрыт авторизацией, поэтому ежели он с истёкшем токеном, то обновление => повтор запроса произойдут автоматически, иначе всему итак хана.
+        localStorage.removeItem('hw_guild_players')
+        this.state.isPlayersFetching = true
+        this.state.playersController = new AbortController()
+        const players = document.getElementById('players');
+        LoaderUtils.showNonBlockingLoader(players)
+        UserRepository.getAllProfiles(this.state.playersController)
+            .then(profiles => {
+                this.state.players = profiles
+            })
+            .catch(e => {
+                console.error('Ошибка загрузки данных:', e);
+                NotificationUtils.showNotification('Ошибка загрузки данных', NotificationUtils.ERROR);
+            })
+            .finally(() => {
+                this.state.isPlayersFetching = false
+                LoaderUtils.hideNonBlockingLoader(players)
+                this.renderPlayersTable()
+            })
     }
 
     // ===== LIGHTBOX =====
@@ -461,6 +525,68 @@ class App {
      */
     getFeatureToggles() {
         return featureToggles
+    }
+
+    /**
+     * Вызвается в случае успешной аутентификации пользователя
+     */
+    onLogin() {
+        if (this.state.isPlayersFetching) {
+            this.state.playersController?.abort()
+        }
+        this.loadPlayersData()
+    }
+
+    #convertFromWithGreat(player) {
+        if (player.hw_goodwin_status === 'YES') {
+            return '+'
+        }
+        if (player.hw_goodwin_status === 'NO') {
+            return '-'
+        }
+        return '?'
+    }
+
+    #convertFormWithGreatToUserValue(formValue) {
+        switch (formValue) {
+            case '+': {
+                return 'YES'
+            }
+            case '-':
+                return 'NO'
+            default:
+                return 'UNKNOWN'
+        }
+    }
+
+    #convertFromStatus(player) {
+        switch (player.status) {
+            case 'ACTIVE':
+                return 'Активен'
+            case 'NOT_ACTIVE':
+                return 'Неактивен'
+            case 'TEMPROARY_UNAVAILABLE':
+                return 'Временно недоступен'
+            case 'VACATION':
+                return 'Отпуск'
+            default:
+                return 'Временно недоступен'
+        }
+    }
+
+    #convertToStatus(formValue) {
+        switch (formValue) {
+            case 'Активен':
+                return 'ACTIVE'
+            case 'Неактивен':
+                return 'NOT_ACTIVE'
+            case 'Временно недоступен':
+                return 'TEMPROARY_UNAVAILABLE'
+            case 'Отпуск':
+                return 'VACATION'
+            default:
+                return 'TEMPROARY_UNAVAILABLE'
+        }
     }
 }
 
