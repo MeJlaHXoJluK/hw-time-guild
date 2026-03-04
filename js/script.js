@@ -1,7 +1,7 @@
-import { featureToggles } from './feature_toggles.js';
-import { LoaderUtils, NotificationUtils } from './utils.js'
-import { initAuth } from './auth.js'
-import { UserRepository } from './data.js'
+import {featureToggles} from './feature_toggles.js';
+import {LoaderUtils, NotificationUtils} from './utils.js'
+import {initAuth} from './auth.js'
+import {UserRepository} from './data.js'
 
 class App {
     constructor() {
@@ -53,7 +53,7 @@ class App {
     initPlayersTable() {
         this.initSorting();
         this.initEditMode();
-       // this.initAddPlayer(); todo: Выглядит так, что не нужно пока. Если пользак авторизовался впервые, то под него будет заведена строка, иначе у него итак строка есть.
+        // this.initAddPlayer(); todo: Выглядит так, что не нужно пока. Если пользак авторизовался впервые, то под него будет заведена строка, иначе у него итак строка есть.
         this.initFormSubmit();
     }
 
@@ -107,7 +107,7 @@ class App {
             if (this.state.isEditMode) {
                 editBtn.textContent = '❌ Выйти из режима редактирования';
                 editBtn.classList.remove('button--secondary');
-               // addBtn.style.display = 'inline-flex';
+                // addBtn.style.display = 'inline-flex';
                 actionsColumn.style.display = 'table-cell';
                 document.querySelectorAll('.actions-column').forEach(cell => {
                     cell.style.display = 'table-cell';
@@ -149,7 +149,7 @@ class App {
             const maxLevel = document.getElementById('maxLevel').value.trim() || '?';
             const withGreat = this.#convertFormWithGreatToUserValue(document.getElementById('withGreat').value);
             const role = document.getElementById('role').value.trim() || 'Участник';
-            const status = document.getElementById('status').value.trim() || 'Активен';
+            const status = this.#convertToStatus(document.getElementById('status').value.trim()) || 'Активен';
             const timezone = document.getElementById('timezone').value.trim() || '';
             const activeHours = document.getElementById('activeHours').value.trim() || '';
             const classField = document.getElementById('class').value.trim() || '';
@@ -222,7 +222,7 @@ class App {
         document.getElementById('maxLevel').value = player.adventure_lvl || '?';
         document.getElementById('withGreat').value = this.#isPlayerWithGreat(player) || '?';
         document.getElementById('role').value = player.role || 'Участник';
-        document.getElementById('status').value = player.status || 'Активен';
+        document.getElementById('status').value = this.#convertFromStatus(player) || 'Активен';
         document.getElementById('timezone').value = player.timezone || '';
         document.getElementById('activeHours').value = player.activity || '';
         document.getElementById('class').value = player.class || '';
@@ -293,7 +293,7 @@ class App {
             row.appendChild(tdRole);
             // Статус
             const tdStatus = document.createElement('td');
-            const statusValue = player.status || 'Активен';
+            const statusValue = this.#convertFromStatus(player) || 'Активен';
             tdStatus.textContent = statusValue;
             tdStatus.className = this.getStatusClass(statusValue);
             row.appendChild(tdStatus);
@@ -376,6 +376,7 @@ class App {
     }
 
     loadPlayersData() {
+        // todo: анонимный пользак тоже должен таблицу получать, а из-за токенов не может сейчас
         // На каждую загрузку страницы по новой таблицу игроков получаем
         // Потому что могла измениться его роль или статус авторизации
         // На успешную авторизацию происходит перезагрузка страницы, поэтому кейс когда запросили для анонима, а он внезапно им быть перестал не произойдёт.
@@ -544,6 +545,36 @@ class App {
                 return 'NO'
             default:
                 return 'UNKNOWN'
+        }
+    }
+
+    #convertFromStatus(player) {
+        switch (player.status) {
+            case 'ACTIVE':
+                return 'Активен'
+            case 'NOT_ACTIVE':
+                return 'Неактивен'
+            case 'TEMPROARY_UNAVAILABLE':
+                return 'Временно недоступен'
+            case 'VACATION':
+                return 'Отпуск'
+            default:
+                return 'Временно недоступен'
+        }
+    }
+
+    #convertToStatus(formValue) {
+        switch (formValue) {
+            case 'Активен':
+                return 'ACTIVE'
+            case 'Неактивен':
+                return 'NOT_ACTIVE'
+            case 'Временно недоступен':
+                return 'TEMPROARY_UNAVAILABLE'
+            case 'Отпуск':
+                return 'VACATION'
+            default:
+                return 'TEMPROARY_UNAVAILABLE'
         }
     }
 }
