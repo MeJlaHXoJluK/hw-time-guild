@@ -163,6 +163,24 @@ export class UserRepository {
     }
 
     /**
+     * @param id идентификатор удаляемого профиля.
+     * @throws Error если удаление не успешно.
+     */
+    static async deleteProfileById(id) {
+        try {
+            const response = await authorizedFetch(async token => {
+                return await UserApi.deleteProfileById(token, id)
+            })
+            if (response.status !== 200) {
+                throw new Error(`Ответ бека: ${response.status}`)
+            }
+        } catch (e) {
+            console.error(e)
+            throw e
+        }
+    }
+
+    /**
      * @param file аватар профиля в формате jpeg/png.
      * @throws Error если не удалось загрузить аватар профиля.
      */

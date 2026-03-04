@@ -1,7 +1,7 @@
-import {featureToggles} from './feature_toggles.js';
-import {LoaderUtils, NotificationUtils} from './utils.js'
-import {initAuth} from './auth.js'
-import {UserRepository} from './data.js'
+import { featureToggles } from './feature_toggles.js';
+import { LoaderUtils, NotificationUtils, refreshPage } from './utils.js'
+import { initAuth } from './auth.js'
+import { UserRepository } from './data.js'
 
 class App {
     constructor() {
@@ -231,12 +231,24 @@ class App {
         document.getElementById('playerModal').style.display = 'flex';
     }
 
-    deletePlayer(index) {
+    deletePlayer(index, id) {
         if (confirm('Удалить этого игрока?')) {
-            this.state.players.splice(index, 1);
-            this.savePlayersData();
-            this.renderPlayersTable();
-            NotificationUtils.showNotification('Игрок удален', NotificationUtils.SUCCESS);
+            LoaderUtils.show()
+            UserRepository.deleteProfileById(id)
+                .then(() => {
+                    this.state.players.splice(index, 1);
+                    this.savePlayersData();
+                    NotificationUtils.showNotification('Игрок удален', NotificationUtils.SUCCESS);
+                    refreshPage() // Если удалил свой профиль, значит входить надо
+                })
+                .catch(e => {
+                    console.error(e.message)
+                    NotificationUtils.showNotification('Игрок не удален', NotificationUtils.ERROR);
+                })
+                .finally(() => {
+                    this.renderPlayersTable();
+                    LoaderUtils.hide()
+                })
         }
     }
 
@@ -352,7 +364,7 @@ class App {
             deleteBtn.title = 'Удалить';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.deletePlayer(index);
+                this.deletePlayer(index, player.id);
             });
             tdActions.appendChild(editBtn);
             tdActions.appendChild(deleteBtn);

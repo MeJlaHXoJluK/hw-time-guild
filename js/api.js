@@ -192,6 +192,24 @@ export class UserApi {
     }
 
     /**
+     * @param token accessToken для авторизованного взаимодействия с данными.
+     * @param id идентификатор удаляемого профиля.
+     * @throws Error в случае ошибки удаления
+     */
+    static async deleteProfileById(token, id) {
+        return fetch(`${BASE_URL}/v1/deleteProfileById`, {
+            method: 'POST',
+            headers: {
+                "Authorization": getBearerToken(token),
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                profileId: id
+            })
+        })
+    }
+
+    /**
      * @param code код, который сайт получил редиректом от telegram при авторизации.
      * @returns Promise<Response> пара access и refresh токенов в случае успеха, иначе запрос с ошибкой.
      */
