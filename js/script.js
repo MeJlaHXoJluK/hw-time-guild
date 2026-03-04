@@ -220,7 +220,7 @@ class App {
         document.getElementById('modalTitle').textContent = 'Редактировать игрока';
         document.getElementById('nick').value = player.name || '';
         document.getElementById('maxLevel').value = player.adventure_lvl || '?';
-        document.getElementById('withGreat').value = this.#isPlayerWithGreat(player) || '?';
+        document.getElementById('withGreat').value = this.#convertFromWithGreat(player) || '?';
         document.getElementById('role').value = player.role || 'Участник';
         document.getElementById('status').value = this.#convertFromStatus(player) || 'Активен';
         document.getElementById('timezone').value = player.timezone || '';
@@ -250,10 +250,10 @@ class App {
     getStatusClass(status) {
         if (!status) return 'status-unknown';
         const statusLower = status.toLowerCase();
-        if (statusLower.includes('актив')) return 'status-active';
-        if (statusLower.includes('отпуск')) return 'status-vacation';
-        if (statusLower.includes('неактив')) return 'status-inactive';
-        if (statusLower.includes('недоступ')) return 'status-inactive';
+        if (statusLower.startsWith('актив')) return 'status-active';
+        if (statusLower.startsWith('отпуск')) return 'status-vacation';
+        if (statusLower.startsWith('неактив')) return 'status-inactive';
+        if (statusLower.startsWith('недоступ')) return 'status-inactive';
         return 'status-unknown';
     }
 
@@ -282,9 +282,9 @@ class App {
             // С Великим
             const tdGreat = document.createElement('td');
             let greatText = '❓';
-            const withGreat = this.#isPlayerWithGreat(player)
-            if (withGreat) greatText = '✅';
-            if (withGreat) greatText = '❌';
+            const withGreat = this.#convertFromWithGreat(player)
+            if (withGreat === '+') greatText = '✅';
+            if (withGreat === '-') greatText = '❌';
             tdGreat.textContent = greatText;
             row.appendChild(tdGreat);
             // Роль
@@ -525,14 +525,14 @@ class App {
         this.loadPlayersData()
     }
 
-    #isPlayerWithGreat(player) {
+    #convertFromWithGreat(player) {
         if (player.hw_goodwin_status === 'YES') {
-            return true
+            return '+'
         }
         if (player.hw_goodwin_status === 'NO') {
-            return false
+            return '-'
         }
-        return null
+        return '?'
     }
 
     #convertFormWithGreatToUserValue(formValue) {
