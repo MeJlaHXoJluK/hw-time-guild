@@ -51,6 +51,12 @@
     }
 }
 
+@media (max-width: 580px) {
+    .modal-content {
+        width: 75%;
+    }
+}
+
 /* ===== TABLET STYLES ===== */
 @media (min-width: 769px) and (max-width: 1024px) {
     .section {

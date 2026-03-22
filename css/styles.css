@@ -384,12 +384,14 @@ h3 {
 }
 
 .modal-content {
+    overflow-y: auto;
     background: var(--bg-secondary);
     padding: 30px;
     border-radius: var(--radius);
     min-width: 400px;
     max-width: 500px;
-    width: 90%;
+    width: 80%;
+    max-height: 95%;
     position: relative;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
