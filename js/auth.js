@@ -1,117 +1,29 @@
-import { NotificationUtils, LoaderUtils, ModalUtils, StringUtils, ThemeUtils } from './utils.js'
+import { NotificationUtils, LoaderUtils, ModalUtils, DivButtonUtils, StringUtils, ThemeUtils, refreshPage } from './utils.js'
+import { TokenHelper, BASE_URL } from './api.js'
+import {
+    UserRepository,
+    UnknownUser,
+    User,
+    LogoutError,
+    CodeExchangeError,
+    ProfileUnavailable
+} from './data.js'
 
-class BaseUser {
-
-    constructor() {
-    }
-}
-
-class UnknownUser extends BaseUser {
-
-    constructor() {
-        super();
-    }
-}
-
-class User extends BaseUser {
-    imgUrl = null
-
-    constructor(imgUrl = null) {
-        super();
-        this.imgUrl = imgUrl
-    }
-}
-
-class UnauthorizedError extends Error {
-    constructor(message) {
-        super(message);
-        this.name = 'UnauthorizedError'
-    }
-}
-
-class TokenHelper {
-
-    constructor() {
-        this.accessKey = 'access_token_key'
-        this.refreshKey = 'refresh_token_key'
-        this._onLogoutListener = null
-    }
-
-    /**
-     * @returns null, если строки нет или она пуста, иначе значение access-токена.
-     */
-    getAccessToken() {
-        return StringUtils.getStringOrNull(localStorage.getItem(this.accessKey))
-    }
-
-    /**
-     * @returns null, если строки нет или она пуста, иначе значение refresh-токена.
-     */
-    getRefreshToken() {
-        return StringUtils.getStringOrNull(localStorage.getItem(this.refreshKey))
-    }
-
-    /**
-     * @param token accessToken для авторизации запросов.
-     * @throws Error если token null или пуст
-     */
-    setAccessToken(token) {
-        this.#performSetToken(this.accessKey, token, 'Can`t set null or empty access token')
-    }
-
-    /**
-     * @param token refreshToken для обновления токенов на беке.
-     * @throws Error если token null или пуст
-     */
-    setRefreshToken(token) {
-        this.#performSetToken(this.refreshKey, token, 'Can`t set null or empty refresh token')
-    }
-
-    /**
-     * @param listener срабатывает всякий раз, когда пользователь считается разлогиненным. (сам вышел, протухли токены, ..., etc.)
-     */
-    setOnLogoutListener(listener = null) {
-        this._onLogoutListener = listener
-    }
-
-    /**
-     * @returns true, если хотя бы какой-то токен существует в LocalStorage, иначе false.
-     */
-    hasTokens() {
-        return this.getAccessToken() != null && this.getRefreshToken() != null
-    }
-
-    onLogout(isRefreshPage = false) {
-        this.#removeTokens()
-        this._onLogoutListener?.()
-        if (isRefreshPage) {
-            window.location.assign(window.location.href)
-        }
-    }
-
-    #removeTokens() {
-        localStorage.removeItem(this.accessKey)
-        localStorage.removeItem(this.refreshKey)
-    }
-
-    #performSetToken(key, token, errorMsg) {
-        if (StringUtils.isNullOrBlank(token)) {
-            throw new Error(errorMsg)
-        }
-        localStorage.setItem(key, token)
-    }
+const authState = {
+    user: null
 }
 
 class ProfileViewHolder {
+
+    static _defaultProfileIconNight = './images/ic_person_night.svg'
+    static _defaultProfileIconDay = './images/ic_person_day.svg'
+
     constructor() {
         this.container = document.getElementById('profile-container')
         this.text = document.getElementById('profile-text')
         this.icon = document.getElementById('profile-icon')
 
         this.loadingClass = 'loading'
-
-        this._defaultProfileIconNight = './images/ic_person_night.svg'
-        this._defaultProfileIconDay = './images/ic_person_day.svg'
 
         this._defaultLoginIconNight = './images/ic_login_night.svg'
         this._defaultLoginIconDay = './images/ic_login_day.svg'
@@ -162,7 +74,7 @@ class ProfileViewHolder {
         this.icon.onload = () => this.icon.classList.remove(skeletonClass)
         this.icon.onerror = () => this.icon.classList.remove(skeletonClass)
 
-        this.icon.src = imgUrl != null ? imgUrl : (isAuth ? this.getDefaultPersonIcon(ThemeUtils.isDarkTheme()) : this.getDefaultLoginIcon(ThemeUtils.isDarkTheme()))
+        this.icon.src = imgUrl != null ? imgUrl : (isAuth ? ProfileViewHolder.getDefaultPersonIcon(ThemeUtils.isDarkTheme()) : this.getDefaultLoginIcon(ThemeUtils.isDarkTheme()))
     }
 
     setProfileClickListener(listener = null) {
@@ -171,13 +83,13 @@ class ProfileViewHolder {
 
     onThemeChange(isDark) {
         if (this.isDefaultProfileIcon(this.icon.src)) {
-            this.setIcon(this.getDefaultPersonIcon(isDark))
+            this.setIcon(ProfileViewHolder.getDefaultPersonIcon(isDark))
         } else if (this.isDefaultLoginIcon(this.icon.src)) {
             this.setIcon(this.getDefaultLoginIcon(isDark))
         }
     }
 
-    getDefaultPersonIcon(isDark) {
+    static getDefaultPersonIcon(isDark) {
         return isDark ? this._defaultProfileIconNight : this._defaultProfileIconDay
     }
 
@@ -186,94 +98,12 @@ class ProfileViewHolder {
     }
 
     isDefaultProfileIcon(url) {
-        return StringUtils.stringIncludeSafely(url, this._defaultProfileIconNight?.slice(1)) || StringUtils.stringIncludeSafely(url, this._defaultProfileIconDay?.slice(1))
+        return StringUtils.stringIncludeSafely(url, ProfileViewHolder._defaultProfileIconNight?.slice(1)) || StringUtils.stringIncludeSafely(url, ProfileViewHolder._defaultProfileIconDay?.slice(1))
     }
 
     isDefaultLoginIcon(url) {
         return StringUtils.stringIncludeSafely(url, this._defaultLoginIconNight?.slice(1)) || StringUtils.stringIncludeSafely(url, this._defaultLoginIconDay?.slice(1))
     }
-}
-
-/**
- * Wrapper над запросом, аля AuthInterceptor, который при протухшем access токене пытается их обновить с помощью refresh токена. Затем запрос повторяется.
- * @param _fetch api-функция, возвращающая Promise<Response | Error>.
- * @returns Promise<Response> если токены не протухли и запрос завершился удачно, иначе Promise<Error>
- */
-async function authorizedFetch(_fetch = null) {
-    if (!_fetch) {
-        throw new Error('Request is Null!')
-    }
-    if (!authHelper.hasTokens()) {
-        throw new UnauthorizedError('Credentials not found')
-    }
-    let response = await _fetch(authHelper.getAccessToken())
-    if (response.status !== 401) {
-        return response
-    }
-    response = await fetchTokens(authHelper.getRefreshToken())
-    if (response.status !== 200) {
-        authHelper.onLogout()
-        throw new UnauthorizedError(`Can\`t fetch tokens! ${response}`)
-    }
-    try {
-        const { accessToken, refreshToken } = await response.json()
-        authHelper.setAccessToken(accessToken)
-        authHelper.setRefreshToken(refreshToken)
-    } catch (e) {
-        authHelper.onLogout()
-        throw new UnauthorizedError('Something when`t wrong on local token update')
-    }
-    response = await _fetch(authHelper.getAccessToken())
-    if (response.status !== 200) {
-        throw new Error(`Fetch failed! ${response}`)
-    }
-    return response
-}
-
-/**
- * Запрос на обновление протухшего аксес токена.
- * @param token refresh токен.
- * @returns Promise<Response>, где объект в теле содержит поля accessToken, refreshToken.
- */
-async function fetchTokens(token) {
-    return fetch('https://afflpqpdllwiwsrtnuer.supabase.co/functions/v1/authRefresh', {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            token: token
-        })
-    })
-}
-
-/**
- * Получение профиля пользователя
- * @param token access токен
- * @returns Promise<Response> в теле которого объект с полями name и imgUrl.
- */
-async function fetchProfile(token = '') {
-    return fetch("https://afflpqpdllwiwsrtnuer.supabase.co/functions/v1/profile", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": token
-        },
-    })
-}
-
-/**
- * Удаление профиля пользователя с hw-guild-time сайта.
- * @param token access токен определяющий пользователя.
- * @returns Promise<Response> результат работы. Если status 200 - профиль удалён, иначе - ошибка.
- */
-async function deleteProfile(token = '') {
-    return fetch('https://afflpqpdllwiwsrtnuer.supabase.co/functions/v1/profileDelete', {
-        method: 'POST',
-        headers: {
-            "Authorization": token
-        }
-    })
 }
 
 /**
@@ -305,9 +135,10 @@ function updateUI(viewHolder, user) {
             ModalUtils.addContent(
                 logoutModal,
                 ModalUtils.buildClose(() => ModalUtils.close(logoutModal)),
-                ModalUtils.buildTitle('Действия над профилем:'),
+                buildAvatar(),
+                ModalUtils.buildTitle(`Действия над профилем ${user.name}:`),
                 ModalUtils.buildButton('Выйти', 'button--primary', () => {
-                    authHelper.onLogout(true)
+                    TokenHelper.onLogout(true)
                     closeLogout()
                 }),
                 ModalUtils.buildButton('Удалить аккаунт', 'delete-btn', () => {
@@ -320,19 +151,13 @@ function updateUI(viewHolder, user) {
                         ModalUtils.buildTitle('Удалить аккаунт?'),
                         ModalUtils.buildButton('Да', 'delete-btn', () => {
                             LoaderUtils.show()
-                            authorizedFetch(deleteProfile)
-                                .then(response => {
-                                    if (response.status === 200) {
-                                        setProfileDeletedNotificationNeed(true)
-                                        authHelper.onLogout(true)
-                                    } else {
-                                        NotificationUtils.showNotification('Ошибка! Возможно проблема на сервере', NotificationUtils.ERROR)
-                                        console.log(response)
-                                    }
+                            UserRepository.deleteProfile()
+                                .then(() => {
+                                    setProfileDeletedNotificationNeed(true)
+                                    TokenHelper.onLogout(true)
                                 })
                                 .catch(e => {
-                                    NotificationUtils.showNotification('Ошибка во время удаления аккаунта', NotificationUtils.ERROR)
-                                    console.log(e)
+                                    NotificationUtils.showNotification(e.message, NotificationUtils.ERROR)
                                 })
                                 .finally(() => {
                                     closeConfirm()
@@ -344,7 +169,8 @@ function updateUI(viewHolder, user) {
                         }),
                     )
                     ModalUtils.show(confirmModal)
-                })
+                }),
+                buildUploadAvatarBtn(),
             )
             ModalUtils.show(logoutModal)
         }
@@ -354,45 +180,19 @@ function updateUI(viewHolder, user) {
     viewHolder.setProfileClickListener(clickListener)
 }
 
-export const authHelper = new TokenHelper()
-
 /**
  * Точка входа. Срабатывает на каждую перезагрузку страницы и либо получает профиль, либо устанавливает состояние разлогина.
  */
-export function initAuth() {
+export function initAuth(onLogin) {
     console.log("Begin auth ...")
 
     const viewHolder = new ProfileViewHolder()
 
-    authHelper.setOnLogoutListener(() => updateUI(viewHolder, new UnknownUser()))
+    TokenHelper.setOnLogoutListener(() => updateUI(viewHolder, new UnknownUser()))
 
-    viewHolder.setLoading(true)
-
-    authorizedFetch(fetchProfile)
-        .then(response => {
-            response.json()
-                .then(profile => {
-                    updateUI(viewHolder, new User(profile.imgUrl))
-                })
-                .catch(e => {
-                    // Если вдруг запрос профиля или сеть икнул[а], то с одной стороны у нас в localStorage валидные токены, а с другой, пользователь на UI не понимает авторизован ли он
-                    // Для простоты разлогиниваю его, чтобы ui и логика были консистентными.
-                    // Альтернативно можно было бы конечно просто дефолтную иконку профиля рисовать, НО, по мере увеличения профиля всё сломается.
-                    // Не откуда будет взять никнейм и т.д. Поэтому проще разлогинивать.
-                    authHelper.onLogout()
-                    showProfileDeletedNotificationIfNeed()
-                    console.log(e)
-                })
-        })
-        .catch(e => {
-            updateUI(viewHolder, new UnknownUser())
-            showProfileDeletedNotificationIfNeed()
-            console.log(e.message)
-        })
-        .finally(() => {
-            viewHolder.setLoading(false)
-            console.log("End auth.")
-        })
+    runAuthentication(viewHolder, onLogin)
+        .then(() => console.log("Auth end success"))
+        .catch(e => console.error(`Auth end with error: ${e}`))
 }
 
 /**
@@ -409,8 +209,265 @@ function buildTelegram() {
     script.src = 'https://telegram.org/js/telegram-widget.js?22';
     script.setAttribute("data-telegram-login", "hw_time_guild_auth_bot");
     script.setAttribute("data-size", "medium");
-    script.setAttribute("data-auth-url", "https://afflpqpdllwiwsrtnuer.supabase.co/functions/v1/tg_auth");
+    script.setAttribute("data-auth-url", `${BASE_URL}/v1/tg_auth`);
     return script
+}
+
+/**
+ * @param onUserCheck колбек, принимающий выбранный name неиспользуемого профиля.
+ * @returns Виджет с подсказками неиспользуемых профилей, доступных к выбору при создании профиля. Если подсказок нет - null.
+ */
+async function buildUnusedProfilesRow(onUserCheck) {
+    const profiles = await UserRepository.getUnusedProfiles()
+    if (!profiles) {
+        return null
+    }
+
+    const row = document.createElement('div')
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    row.addEventListener("mousedown", (e) => {
+        isDown = true;
+        row.style.cursor = "auto";
+        startX = e.pageX - row.offsetLeft;
+        scrollLeft = row.scrollLeft;
+    });
+
+    row.addEventListener("mouseleave", () => {
+        isDown = false;
+        row.style.cursor = "auto";
+    });
+
+    row.addEventListener("mouseup", () => {
+        isDown = false;
+        row.style.cursor = "auto";
+    });
+
+    row.addEventListener("mousemove", (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+
+        const x = e.pageX - row.offsetLeft;
+        const speed = (x - startX) * 1.5;
+        row.scrollLeft = scrollLeft - speed;
+    });
+
+    row.className = 'profiles-row'
+
+    const chips = profiles.map(profile => {
+        const profileChip = document.createElement('div')
+        profileChip.className = 'profile-chip'
+        profileChip.textContent = profile.name
+        profileChip.addEventListener('click', () => {
+            chips.forEach(chip => {
+                setActiveClass(chip, chip.textContent === profile.name)
+            })
+            row.prepend(profileChip)
+            row.scrollTo({ left: 0, behavior: 'smooth' })
+            onUserCheck(profile.name)
+        })
+        return profileChip
+    })
+    row.append(...chips)
+    return row
+}
+
+/**
+ * @param onTextChanged слушатель ввода.
+ * @returns виджет поля ввода.
+ */
+function buildUserInput(onTextChanged) {
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.placeholder = 'Введите игровой никнейм'
+    input.className = 'profile-input'
+    input.style.marginTop = '16px'
+
+    input.addEventListener('input', e => {
+        onTextChanged(e.target.value)
+    })
+    input.addEventListener('focus', () => setErrorClass(input, false))
+    return input
+}
+
+/**
+ * @return view с аватаром пользователя
+ */
+function buildAvatar() {
+    const container = document.createElement('div')
+    container.className = 'container-avatar'
+    const imageContainer = document.createElement('div')
+    imageContainer.className = 'avatar'
+    imageContainer.style.display = 'none'
+    const image = document.createElement('img')
+
+    const skeletonClass = 'skeleton'
+    image.classList.add(skeletonClass)
+    image.onload = () => {
+        image.classList.remove(skeletonClass)
+        imageContainer.style.display = 'block'
+    }
+    image.onerror = () => image.classList.remove(skeletonClass)
+
+    image.src = authState.user?.imgUrl ? authState.user.imgUrl : ProfileViewHolder.getDefaultPersonIcon(ThemeUtils.isDarkTheme())
+    image.alt = 'Аватар пользователя'
+    imageContainer.appendChild(image)
+    container.appendChild(imageContainer)
+    return container
+}
+
+/**
+ * @return Кнопку загрузки аватара.
+ */
+function buildUploadAvatarBtn() {
+    const button = document.createElement('div')
+    button.classList.add('button--primary', 'button')
+    button.textContent = 'Загрузить аватар'
+
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/jpeg, image/png'
+    input.hidden = true
+
+    input.addEventListener('change', () => {
+        const file = input.files[0]
+        if (file) {
+            LoaderUtils.show()
+            UserRepository.uploadAvatar(file)
+                .then(() => refreshPage())
+                .catch(e => {
+                    console.error(e)
+                    NotificationUtils.showNotification(e.message, NotificationUtils.ERROR)
+                })
+                .finally(() => LoaderUtils.hide())
+        }
+    })
+
+    button.addEventListener('click', () => {
+        input.click()
+    })
+
+    button.appendChild(input)
+    return button
+}
+
+/**
+ * Окно создания профиля нового пользователя
+ * @param onProfileReceived колбек принимающий User в случае успешного создания профиля.
+ */
+async function showProfileCreate(onProfileReceived, onProfileFailed) {
+    // todo: какая-то дизайн-система простенькая нужна.
+    const onModalClose = () => {
+        if (!authState.user) {
+            TokenHelper.onLogout(true)
+        }
+    }
+    const modal = ModalUtils.buildModal(onModalClose)
+    const closeModal = () => ModalUtils.close(modal, onModalClose)
+
+    try {
+        LoaderUtils.show()
+
+        let profileDraft = null
+
+        let usersRow
+        let userInput
+        let profileCreateBtn
+
+        const onDocumentEnterClick = (e) => {
+            if (profileCreateBtn && e.key === "Enter" && !DivButtonUtils.isDisabled(profileCreateBtn)) {
+                e.preventDefault()
+                onProfileCreateClick()
+            }
+        }
+
+        const onProfileCreateFailed = () => {
+            NotificationUtils.showNotification('Не удалось создать профиль', NotificationUtils.ERROR)
+            onProfileFailed()
+            closeModal()
+        }
+
+        const onProfileCreateClick = () => {
+            if (profileCreateBtn && userInput && StringUtils.isNullOrBlank(userInput.value)) {
+                DivButtonUtils.setDisable(profileCreateBtn, true) // так как ввод слушается с задержкой, то можно наткнуться на этот кейс. Удалять debounce НИЗЯ! Так оптимизированее малёха :)
+                return
+            }
+            LoaderUtils.show()
+            userInput?.blur()
+            DivButtonUtils.setDisable(profileCreateBtn, true) // Чтобы единожды выполнилось
+            UserRepository.createProfile(profileDraft)
+                .then(user => {
+                    LoaderUtils.hide()
+                    document.removeEventListener('keypress', onDocumentEnterClick)
+                    onProfileReceived(user)
+                    closeModal()
+                })
+                .catch(e => {
+                    console.error(e)
+                    LoaderUtils.hide()
+                    if (e instanceof ProfileUnavailable) {
+                        NotificationUtils.showNotification('Профиль занят', NotificationUtils.ERROR)
+                        setErrorClass(userInput)
+                        DivButtonUtils.setDisable(profileCreateBtn, StringUtils.isNullOrBlank(profileDraft))
+                    } else {
+                        onProfileCreateFailed()
+                    }
+                })
+        }
+
+        const onProfileDraftChange = name => {
+            profileDraft = name
+            if (profileCreateBtn) {
+                DivButtonUtils.setDisable(profileCreateBtn, StringUtils.isNullOrBlank(profileDraft))
+            }
+        }
+
+        profileCreateBtn = ModalUtils.buildButton('Войти', 'button--primary', onProfileCreateClick)
+        DivButtonUtils.setDisable(profileCreateBtn, true)
+
+        usersRow = await buildUnusedProfilesRow(name => {
+            onProfileDraftChange(name)
+            if (userInput) {
+                userInput.value = name
+            }
+        })
+        userInput = buildUserInput(debounce(name => {
+            onProfileDraftChange(name)
+            if (usersRow) {
+                Array.from(usersRow.children).forEach(child => {
+                    const isActive = child.textContent === name
+                    setActiveClass(child, isActive)
+                    if (isActive) {
+                        usersRow.prepend(child)
+                        usersRow.scrollTo({ left: 0, behavior: 'smooth' })
+                    }
+                })
+            }
+        }))
+
+        document.addEventListener("keypress", onDocumentEnterClick);
+
+        const elements = [
+            ModalUtils.buildClose(() => closeModal()),
+            ModalUtils.buildTitle('Пожалуйста назовитесь'),
+            usersRow,
+            userInput,
+            profileCreateBtn,
+        ].filter(item => item != null)
+
+        ModalUtils.addContent(
+            modal,
+            ...elements
+        )
+        ModalUtils.show(modal)
+    } catch (e) {
+        closeModal()
+    } finally {
+        LoaderUtils.hide()
+    }
 }
 
 /**
@@ -432,5 +489,104 @@ function showProfileDeletedNotificationIfNeed() {
     if (localStorage.getItem('isProfileDeletedNotification') === 'true') {
         NotificationUtils.showNotification('Аккаунт удалён', NotificationUtils.SUCCESS)
         setProfileDeletedNotificationNeed(false)
+    }
+}
+
+/**
+ * Сценарий аутентификации.
+ * @param viewHolder сущность для управления UI частью профиля.
+ */
+async function runAuthentication(viewHolder, onLogin) {
+    try {
+        viewHolder.setLoading(true) // со старта сценария аутентификации показать скелетоны на профиле
+        const code = UserRepository.getCodeFromLocalStorage()
+
+        let isShowAuthSuccessNotification = false
+        let isNewUser = false
+
+        if (code) {
+            LoaderUtils.show()
+            isNewUser = await UserRepository.processCodeExchange(code)
+            isShowAuthSuccessNotification = true
+        }
+
+        const onProfileReceived = profile => {
+            updateUI(viewHolder, profile)
+            if (isShowAuthSuccessNotification) {
+                NotificationUtils.showNotification('Вход выполнен успешно', NotificationUtils.SUCCESS)
+            }
+            onLogin()
+        }
+
+        let profile = null
+        if (!isNewUser) {
+            profile = await UserRepository.getProfile()
+            isNewUser = !profile.hasProfile
+        }
+
+        if (isNewUser) {
+            LoaderUtils.hide()
+            await showProfileCreate(
+                user => {
+                    authState.user = user
+                    onProfileReceived(user)
+                },
+                () => {
+                TokenHelper.onLogout()
+                viewHolder.setLoading(false)
+            })
+        } else {
+            authState.user = new User(profile.imgUrl, profile.name)
+            onProfileReceived(authState.user)
+        }
+    } catch (e) {
+        if (e instanceof CodeExchangeError) {
+            NotificationUtils.showNotification('Ошибка при входе', NotificationUtils.ERROR)
+        }
+        if (e instanceof LogoutError) {
+            // Если вдруг запрос профиля или сеть икнул[а], то с одной стороны у нас в localStorage валидные токены, а с другой, пользователь на UI не понимает авторизован ли он
+            // Для простоты разлогиниваю его, чтобы ui и логика были консистентными.
+            // Альтернативно можно было бы конечно просто дефолтную иконку профиля рисовать, НО, по мере увеличения профиля всё сломается.
+            // Не откуда будет взять никнейм и т.д. Поэтому проще разлогинивать.
+            TokenHelper.onLogout()
+            throw e // нет смысла обновлять UI ниже, он на logout итак обновится
+        }
+        updateUI(viewHolder, new UnknownUser())
+        throw e
+    } finally {
+        TokenHelper.removeCode()
+        LoaderUtils.hide()
+        viewHolder.setLoading(false)
+        showProfileDeletedNotificationIfNeed()
+    }
+}
+
+function debounce(fn, delay = 300) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            fn.apply(this, args);
+        }, delay);
+    }
+}
+
+function setActiveClass(element, isActive = true) {
+    const activeClass = 'active'
+    if (isActive) {
+        if (!element.classList.contains(activeClass)) {
+            element.classList.add(activeClass)
+        }
+    } else {
+        element.classList.remove(activeClass)
+    }
+}
+
+function setErrorClass(element, isError = true) {
+    const errorClass = 'error'
+    if (isError && !element.classList.contains(errorClass)) {
+        element.classList.add(errorClass)
+    } else {
+        element.classList.remove(errorClass)
     }
 }

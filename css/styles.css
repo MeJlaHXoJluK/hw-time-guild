@@ -384,12 +384,14 @@ h3 {
 }
 
 .modal-content {
+    overflow-y: auto;
     background: var(--bg-secondary);
     padding: 30px;
     border-radius: var(--radius);
     min-width: 400px;
     max-width: 500px;
-    width: 90%;
+    width: 80%;
+    max-height: 95%;
     position: relative;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
@@ -483,6 +485,13 @@ h3 {
     box-shadow: none;
 }
 
+.button.disabled {
+    user-select: none;
+    pointer-events: none;
+    opacity: .5;
+    background: #666666;
+}
+
 /* ===== NOTIFICATIONS ===== */
 .notifications-container {
     position: fixed;
@@ -551,6 +560,30 @@ h3 {
     animation: spin 1s linear infinite;
 }
 
+/* ===== NON BLOCKING LOADER ===== */
+.nonBlockingLoaderContainer {
+    position: static;
+    padding: 20px 0;
+    display: block;
+    width: 100%;
+}
+
+.nonBlockingLoaderWrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nonBlockingLoader {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--secondary), var(--accent), var(--secondary));
+    mask: radial-gradient(circle, transparent 60%, black 62%);
+    animation: spin 0.9s linear infinite;
+    box-shadow: 0 0 12px rgba(0,0,0,0.1);
+}
+
 /* ===== ANIMATIONS ===== */
 @keyframes slideUp {
     from {
@@ -609,7 +642,11 @@ h3 {
     }
 }
 
-/* Добавьте в конец файла styles.css */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 
 .paths-container {
     margin-top: 12px;
@@ -1035,4 +1072,122 @@ h3 {
 .profile-item.tab-button,
 .profile-item.placeholder {
     padding: 0 24px;
+}
+
+.profiles-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 10px 4px;
+    border: none;
+}
+
+.profiles-row::-webkit-scrollbar {
+    height: 8px;
+}
+
+.profiles-row::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.profiles-row::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+    background-clip: content-box;
+}
+
+.profiles-row::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.profile-chip {
+    flex: 0 0 auto;
+    border-radius: 24px;
+    min-height: 44px;
+    padding: 10px 20px;
+    background-color: light-dark(#f2f4f7, #222731);
+    white-space: nowrap;
+    user-select: none;
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.profile-chip.active {
+    background-color: var(--secondary);
+    color: #ffffff;
+}
+
+.profile-input {
+    outline: none;
+    border: none;
+    appearance: none;
+    background: #f2f2f2;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: medium;
+    font-weight: bold;
+    color: #222222;
+
+    transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.profile-input:focus {
+    box-shadow: 0 0 0 3px var(--secondary);
+}
+
+.profile-input.error {
+    box-shadow: 0 0 0 3px var(--accent);
+}
+
+/* PROFILE AVATAR */
+.container-avatar {
+    display: flex;
+    margin: 20px;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    justify-content: center;
+}
+
+.avatar img {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    object-fit: cover;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+}
+
+.avatar::before {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+
+    background:
+            radial-gradient(circle at center, rgba(255,255,255,0.5) 0%, transparent 40%),
+            linear-gradient(218deg, rgb(255 0 0 / 80%), transparent 60%),
+            linear-gradient(120deg, rgb(0 255 0 / 80%), transparent 60%),
+            linear-gradient(330deg, rgb(0 0 255 / 80%), transparent 60%);
+
+    filter: blur(20px) saturate(130%);
+    z-index: 1;
+}
+
+/* ФУТЕР */
+footer {
+    margin-top: 32px;
+    padding: 24px 12px;
+    background: linear-gradient(to bottom, var(--bg-secondary), #0c0e12);
+    border-top: 1px solid var(--border);
 }
